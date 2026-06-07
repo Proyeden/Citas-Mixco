@@ -209,6 +209,11 @@
     text-align: center;
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 110px;
   }
   .specialty-card::before {
     content: '';
@@ -361,22 +366,26 @@
   }
   .form-group textarea { resize: vertical; min-height: 80px; }
 
-  /* ── TIPO CONSULTA ── */
-  .tipo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .tipo-card {
-    padding: 14px;
+  /* ── PRIMERA VISITA ── */
+  .primera-visita-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 8px 0; }
+  @media(max-width: 400px) { .primera-visita-grid { grid-template-columns: 1fr; } }
+  .primera-card {
+    padding: 24px 16px;
     border: 2px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
     cursor: pointer;
     transition: all 0.2s;
     background: var(--cream);
+    text-align: center;
   }
-  .tipo-card:hover { border-color: var(--navy); }
-  .tipo-card.selected { border-color: var(--navy); background: var(--navy); }
-  .tipo-card.selected .tipo-name, .tipo-card.selected .tipo-price { color: white; }
-  .tipo-name { font-weight: 600; font-size: 14px; color: var(--navy); margin-bottom: 4px; }
-  .tipo-price { font-size: 13px; color: var(--gold); font-weight: 500; }
-  .tipo-card.selected .tipo-price { color: var(--gold-light); }
+  .primera-card:hover { border-color: var(--navy); transform: translateY(-2px); box-shadow: var(--shadow); }
+  .primera-card.selected { border-color: var(--navy); background: linear-gradient(135deg, #1A6B8A, #2196C4); }
+  .primera-card.selected .primera-title,
+  .primera-card.selected .primera-sub { color: white; }
+  .primera-icon { font-size: 36px; margin-bottom: 12px; }
+  .primera-title { font-weight: 700; font-size: 15px; color: var(--navy); margin-bottom: 6px; line-height: 1.3; }
+  .primera-sub { font-size: 12px; color: var(--text-muted); }
+  .primera-card.selected .primera-sub { color: rgba(255,255,255,0.8); }
 
   /* ── BUTTONS ── */
   .btn-primary {
@@ -800,16 +809,21 @@
       <div class="step-line" id="sl1"></div>
       <div class="step">
         <div class="step-num" id="sn2">2</div>
-        <span class="step-label">Fecha y hora</span>
+        <span class="step-label">Tu visita</span>
       </div>
       <div class="step-line" id="sl2"></div>
       <div class="step">
         <div class="step-num" id="sn3">3</div>
-        <span class="step-label">Tus datos</span>
+        <span class="step-label">Fecha y hora</span>
       </div>
       <div class="step-line" id="sl3"></div>
       <div class="step">
         <div class="step-num" id="sn4">4</div>
+        <span class="step-label">Tus datos</span>
+      </div>
+      <div class="step-line" id="sl4"></div>
+      <div class="step">
+        <div class="step-num" id="sn5">5</div>
         <span class="step-label">Confirmación</span>
       </div>
     </div>
@@ -840,7 +854,7 @@
             <div class="spec-name">Neonatología</div>
             <div class="spec-desc">Recién nacidos</div>
           </div>
-          <div class="specialty-card" data-esp="psicologia" style="grid-column: span 2; max-width: 50%; margin: 0 auto; width:100%">
+          <div class="specialty-card" data-esp="psicologia" style="grid-column: span 2; max-width: 260px; margin: 0 auto; width:100%">
             <div class="spec-icon">🧠</div>
             <div class="spec-name">Psicología</div>
             <div class="spec-desc">Bienestar mental</div>
@@ -849,22 +863,37 @@
       </div>
     </div>
 
-    <!-- STEP 2: TIPO + FECHA + HORA -->
+    <!-- STEP 2: PRIMERA VISITA -->
     <div id="step2" class="step-content" style="display:none">
       <div class="card">
-        <h2 id="step2Title">Elige tu consulta</h2>
-        <p class="subtitle">Tipo de consulta y horario disponible</p>
-
-        <!-- Tipo consulta -->
-        <div style="margin-bottom:20px">
-          <div class="slots-title">Tipo de consulta</div>
-          <div class="tipo-grid" id="tipoGrid"></div>
+        <h2>¡Bienvenido!</h2>
+        <p class="subtitle">Una pregunta rápida antes de continuar</p>
+        <div class="primera-visita-grid">
+          <div class="primera-card" data-primera="si">
+            <div class="primera-icon">🌟</div>
+            <div class="primera-title">Sí, es mi primera visita</div>
+            <div class="primera-sub">Nunca he consultado en esta clínica</div>
+          </div>
+          <div class="primera-card" data-primera="no">
+            <div class="primera-icon">👋</div>
+            <div class="primera-title">Ya he consultado antes</div>
+            <div class="primera-sub">Soy paciente de la clínica</div>
+          </div>
         </div>
+        <button class="btn-secondary" id="btnBackToStep1" style="margin-top:16px; width:100%">← Cambiar especialidad</button>
+      </div>
+    </div>
 
-        <!-- Precio info -->
+    <!-- STEP 3: FECHA + HORA -->
+    <div id="step3" class="step-content" style="display:none">
+      <div class="card">
+        <h2 id="step3Title">Elige tu fecha y hora</h2>
+        <p class="subtitle" id="step3Sub">Selecciona el día y horario disponible</p>
+
+        <!-- Precio info (determinado por primera visita) -->
         <div class="price-info" id="priceInfo" style="display:none">
           <div>
-            <div class="price-label">Precio seleccionado</div>
+            <div class="price-label" id="priceLabel">Precio de consulta</div>
           </div>
           <div class="price-value" id="priceDisplay">Q0</div>
         </div>
@@ -884,14 +913,14 @@
         </div>
 
         <div style="display:flex; gap:10px; margin-top:16px">
-          <button class="btn-secondary" data-gostep="1">← Atrás</button>
-          <button class="btn-primary" id="btnStep2" data-gostep="3" disabled>Continuar →</button>
+          <button class="btn-secondary" data-gostep="2">← Atrás</button>
+          <button class="btn-primary" id="btnStep3" data-gostep="3" disabled>Continuar →</button>
         </div>
       </div>
     </div>
 
     <!-- STEP 3: DATOS -->
-    <div id="step3" class="step-content" style="display:none">
+    <div id="step4" class="step-content" style="display:none">
       <div class="card">
         <h2>Tus datos</h2>
         <p class="subtitle">Para confirmar tu cita necesitamos tu información</p>
@@ -913,14 +942,14 @@
           <textarea id="fMotivo" placeholder="Describe brevemente por qué necesitas la cita (opcional)"></textarea>
         </div>
         <div style="display:flex; gap:10px;">
-          <button class="btn-secondary" data-gostep="2">← Atrás</button>
+          <button class="btn-secondary" data-gostep="3">← Atrás</button>
           <button class="btn-primary" id="btnConfirmarCita">Confirmar cita →</button>
         </div>
       </div>
     </div>
 
     <!-- STEP 4: CONFIRMACIÓN -->
-    <div id="step4" class="step-content" style="display:none">
+    <div id="step5" class="step-content" style="display:none">
       <div class="confirm-box">
         <div class="confirm-icon">✅</div>
         <div class="confirm-id" id="confirmId"></div>
@@ -1210,7 +1239,7 @@ window.showPersonalLogin = () => {
 function buildPinInputs() {
   const c = document.getElementById('pinInputs');
   c.innerHTML = '';
-  for (let i=0; i<10; i++) {
+  for (let i=0; i<6; i++) {
     const inp = document.createElement('input');
     inp.type = 'password';
     inp.maxLength = 1;
@@ -1232,39 +1261,41 @@ function buildPinInputs() {
 
 window.checkPin = () => {
   let pin = '';
-  for (let i=0;i<10;i++) {
+  for (let i=0;i<6;i++) {
     const el = document.getElementById(`pd${i}`);
     if (el) pin += el.value;
   }
-  if (pin === 'Ch1ch@bell@') {
+  if (pin === '260723') {
     document.getElementById('pinError').style.display = 'none';
     initPersonalView();
     showView('personalView');
   } else {
     document.getElementById('pinError').style.display = 'block';
-    for (let i=0;i<10;i++) { const el=document.getElementById(`pd${i}`); if(el) el.value=''; }
+    for (let i=0;i<6;i++) { const el=document.getElementById(`pd${i}`); if(el) el.value=''; }
     document.getElementById('pd0').focus();
   }
 };
 
 // ── STEPS ──────────────────────────────────────────────
 function updateSteps(active) {
-  for (let i=1;i<=4;i++) {
+  for (let i=1;i<=5;i++) {
     const el = document.getElementById(`sn${i}`);
+    if (!el) continue;
     el.classList.remove('active','done');
     if (i < active) { el.classList.add('done'); el.textContent='✓'; }
     else if (i === active) { el.classList.add('active'); el.textContent=i; }
     else el.textContent=i;
-    if (i<4) {
+    if (i<5) {
       const line = document.getElementById(`sl${i}`);
-      line.classList.toggle('done', i < active);
+      if (line) line.classList.toggle('done', i < active);
     }
   }
 }
 
 window.goStep = (n) => {
-  for (let i=1;i<=4;i++) {
-    document.getElementById(`step${i}`).style.display = i===n ? 'block' : 'none';
+  for (let i=1;i<=5;i++) {
+    const el = document.getElementById(`step${i}`);
+    if (el) el.style.display = i===n ? 'block' : 'none';
   }
   updateSteps(n);
   window.scrollTo(0,0);
@@ -1277,54 +1308,35 @@ window.selectSpecialty = (esp, el) => {
   document.querySelectorAll('.specialty-card').forEach(c => c.classList.remove('selected'));
   if(el) el.classList.add('selected');
 
-  // Build tipo grid
+  // Price will be determined at step2 (primera visita question)
+  document.getElementById('step3Title').textContent = NOMBRES_ESP[esp];
+  document.getElementById('priceInfo').style.display = 'none';
+
+  setTimeout(()=>goStep(2), 200); // goes to primera visita step
+};
+
+window.selectPrimeraVisita = (esPrimera) => {
+  const esp = S.especialidad;
   const p = PRECIOS[esp];
-  const grid = document.getElementById('tipoGrid');
-  grid.innerHTML = '';
   if (p.fijo !== undefined) {
-    grid.innerHTML = `<div class="tipo-card selected" style="grid-column:span 2" data-tipo="consulta" data-precio="${p.fijo}">
-      <div class="tipo-name">Consulta</div>
-      <div class="tipo-price">Q${p.fijo}</div>
-    </div>`;
-    grid.querySelectorAll('.tipo-card').forEach(c => {
-      c.addEventListener('click', () => selectTipo(c.dataset.tipo, parseInt(c.dataset.precio), c));
-    });
-    S.tipo = 'consulta'; S.precio = p.fijo;
-    document.getElementById('priceInfo').style.display = 'flex';
-    document.getElementById('priceDisplay').textContent = `Q${p.fijo}`;
+    S.tipo = 'consulta';
+    S.precio = p.fijo;
   } else {
-    grid.innerHTML = `
-      <div class="tipo-card" data-tipo="primera" data-precio="${p.primera}">
-        <div class="tipo-name">Primera vez</div>
-        <div class="tipo-price">Q${p.primera}</div>
-      </div>
-      <div class="tipo-card" data-tipo="subsecuente" data-precio="${p.subsecuente}">
-        <div class="tipo-name">Subsecuente</div>
-        <div class="tipo-price">Q${p.subsecuente}</div>
-      </div>`;
-    // Attach listeners after innerHTML
-    grid.querySelectorAll('.tipo-card').forEach(c => {
-      c.addEventListener('click', () => selectTipo(c.dataset.tipo, parseInt(c.dataset.precio), c));
-    });
-    document.getElementById('priceInfo').style.display = 'none';
+    S.tipo = esPrimera ? 'primera' : 'subsecuente';
+    S.precio = esPrimera ? p.primera : p.subsecuente;
   }
-
-  document.getElementById('step2Title').textContent = NOMBRES_ESP[esp];
-
-  // Init calendar
+  // Show price in step3
+  const priceInfo = document.getElementById('priceInfo');
+  const priceDisplay = document.getElementById('priceDisplay');
+  const priceLabel = document.getElementById('priceLabel');
+  priceInfo.style.display = 'flex';
+  priceDisplay.textContent = `Q${S.precio}`;
+  if (priceLabel) priceLabel.textContent = esPrimera ? 'Primera consulta' : 'Consulta subsecuente';
+  // Init calendar and go to step3
   const now = new Date();
   S.calYear = now.getFullYear(); S.calMonth = now.getMonth();
   renderCalendar();
-
-  setTimeout(()=>goStep(2), 200);
-};
-
-window.selectTipo = (tipo, precio, el) => {
-  S.tipo = tipo; S.precio = precio;
-  document.querySelectorAll('.tipo-card').forEach(c=>c.classList.remove('selected'));
-  el.classList.add('selected');
-  document.getElementById('priceInfo').style.display = 'flex';
-  document.getElementById('priceDisplay').textContent = `Q${precio}`;
+  goStep(3);
 };
 
 // ── CALENDAR ──────────────────────────────────────────
@@ -1393,7 +1405,7 @@ window.calNext = () => {
 window.selectDate = async (y,m,d) => {
   S.selectedDate = new Date(y,m,d);
   S.selectedSlot = null;
-  document.getElementById('btnStep2').disabled = true;
+  document.getElementById('btnStep3').disabled = true;
   renderCalendar();
   await renderSlots();
 };
@@ -1465,12 +1477,12 @@ async function renderSlots() {
     const div = document.createElement('div');
     div.className = cls;
     div.textContent = label;
-    if (!disabled) div.onclick = () => {
+    if (!disabled) div.addEventListener('click', () => {
       document.querySelectorAll('.slot').forEach(s=>s.classList.remove('selected'));
       div.classList.add('selected');
       S.selectedSlot = slot;
-      document.getElementById('btnStep2').disabled = !S.tipo;
-    };
+      document.getElementById('btnStep3').disabled = false;
+    });
     grid.appendChild(div);
   });
 
@@ -1533,15 +1545,17 @@ window.confirmarCita = async () => {
     <div class="confirm-detail-row"><span class="label">Precio</span><span class="value">Q${S.precio}</span></div>
     <div class="confirm-detail-row"><span class="label">Paciente</span><span class="value">${nombre} ${apellido}</span></div>
   `;
-  goStep(4);
+  goStep(5);
 };
 
 window.resetPatient = () => {
   S.especialidad=null;S.tipo=null;S.precio=0;S.selectedDate=null;S.selectedSlot=null;
+  document.querySelectorAll('.primera-card').forEach(c=>c.classList.remove('selected'));
   document.getElementById('fNombre').value='';
   document.getElementById('fApellido').value='';
   document.getElementById('fTel').value='';
   document.getElementById('fMotivo').value='';
+  document.querySelectorAll('.specialty-card').forEach(c=>c.classList.remove('selected'));
   document.querySelectorAll('.specialty-card').forEach(c=>c.classList.remove('selected'));
   goStep(1);
 };
@@ -1715,11 +1729,11 @@ window.loadReagSlots = async () => {
     const div = document.createElement('div');
     div.className = 'mini-slot' + (occupied.has(slot)?' occupied':'');
     div.textContent = formatTime(slot);
-    if (!occupied.has(slot)) div.onclick = () => {
+    if (!occupied.has(slot)) div.addEventListener('click', () => {
       document.querySelectorAll('.mini-slot').forEach(s=>s.classList.remove('selected'));
       div.classList.add('selected');
       S.reagendaSlot = slot;
-    };
+    });
     ms.appendChild(div);
   });
 };
@@ -1768,11 +1782,11 @@ window.loadBloqueos = async () => {
     div.className = 'slot' + (isOcc?' occupied':(isBlk?' admin-reserved':''));
     div.textContent = isOcc?`${formatTime(slot)} (cita)`:isBlk?`🔒 ${formatTime(slot)}`:formatTime(slot);
     if (!isOcc && !isBlk) {
-      div.onclick = () => {
+      div.addEventListener('click', () => {
         div.classList.toggle('selected');
         if (div.classList.contains('selected')) S.blockSelectedSlots.push(slot);
         else S.blockSelectedSlots = S.blockSelectedSlots.filter(s=>s!==slot);
-      };
+      });
     }
     grid.appendChild(div);
   });
@@ -1862,6 +1876,20 @@ document.addEventListener('DOMContentLoaded', () => {
       selectSpecialty(card.dataset.esp, card);
     });
   });
+
+  // Primera visita cards
+  document.querySelectorAll('.primera-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.primera-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      const esPrimera = card.dataset.primera === 'si';
+      selectPrimeraVisita(esPrimera);
+    });
+  });
+
+  // Back to step1 from step2
+  const bb1 = document.getElementById('btnBackToStep1');
+  if (bb1) bb1.addEventListener('click', () => goStep(1));
 
   // Step navigation buttons
   document.querySelectorAll('[data-gostep]').forEach(btn => {
