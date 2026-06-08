@@ -127,7 +127,7 @@
   .container {
     max-width: 680px;
     margin: 0 auto;
-    padding: 32px 16px 60px;
+    padding: 20px 12px 60px;
   }
 
   /* ── VIEWS ── */
@@ -144,41 +144,36 @@
     align-items: center;
     justify-content: center;
     gap: 0;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
+    padding: 0 4px;
   }
   .step {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
   }
   .step-num {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background: var(--border);
     color: var(--text-muted);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 700;
     transition: all 0.3s;
     flex-shrink: 0;
   }
-  .step-num.active { background: var(--navy); color: white; }
+  .step-num.active { background: var(--navy); color: white; box-shadow: 0 2px 8px rgba(26,107,138,0.4); }
   .step-num.done { background: var(--sage); color: white; }
-  .step-label {
-    font-size: 12px;
-    color: var(--text-muted);
-    font-weight: 500;
-    display: none;
-  }
-  @media(min-width: 480px) { .step-label { display: block; } }
+  .step-label { display: none; }
   .step-line {
-    width: 40px;
+    width: 24px;
     height: 2px;
     background: var(--border);
-    margin: 0 4px;
+    margin: 0 2px;
     transition: background 0.3s;
   }
   .step-line.done { background: var(--sage); }
@@ -187,14 +182,14 @@
   .card {
     background: var(--warm-white);
     border-radius: var(--radius);
-    padding: 28px;
+    padding: 20px 16px;
     box-shadow: var(--shadow);
     border: 1px solid var(--border);
     margin-bottom: 16px;
   }
   .card h2 {
     font-family: 'Playfair Display', serif;
-    font-size: 22px;
+    font-size: 20px;
     color: var(--navy);
     margin-bottom: 6px;
   }
@@ -208,15 +203,14 @@
   .specialty-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 10px;
   }
-  @media(max-width: 400px) { .specialty-grid { grid-template-columns: 1fr; } }
 
   .specialty-card {
     background: var(--cream);
     border: 2px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 20px 16px;
+    padding: 16px 10px;
     cursor: pointer;
     transition: all 0.2s;
     text-align: center;
@@ -226,7 +220,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 110px;
+    min-height: 100px;
   }
   .specialty-card::before {
     content: '';
@@ -243,9 +237,9 @@
   .specialty-card.selected .spec-name,
   .specialty-card.selected .spec-desc { color: white; }
 
-  .spec-icon { font-size: 28px; margin-bottom: 10px; position: relative; }
-  .spec-name { font-weight: 600; font-size: 14px; color: var(--navy); position: relative; margin-bottom: 4px; }
-  .spec-desc { font-size: 12px; color: var(--text-muted); position: relative; }
+  .spec-icon { font-size: 24px; margin-bottom: 8px; position: relative; }
+  .spec-name { font-weight: 700; font-size: 13px; color: var(--navy); position: relative; margin-bottom: 2px; line-height: 1.3; }
+  .spec-desc { font-size: 11px; color: var(--text-muted); position: relative; line-height: 1.3; }
   .specialty-card.selected .spec-desc { color: rgba(255,255,255,0.7); }
 
   /* ── PRICE TAG ── */
@@ -325,6 +319,19 @@
   .cal-day.selected { background: linear-gradient(135deg,#1A6B8A,#2196C4); color: white; border-color: #1A6B8A; }
   .cal-day.today { border-color: var(--gold); }
   .cal-day.past, .cal-day.unavailable { color: var(--border); cursor: not-allowed; }
+  .cal-day-pending {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.15s;
+    border: 1.5px dashed var(--border); color: var(--text-muted); font-weight: 500;
+  }
+  .cal-day-pending:hover { border-color: var(--gold); color: var(--navy); background: var(--celeste-light); }
+  .cal-day-future {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.15s;
+    border: 1.5px solid var(--border); color: var(--text-muted); font-weight: 500;
+    opacity: 0.6;
+  }
+  .cal-day-future:hover { border-color: var(--navy); color: var(--navy); opacity: 1; background: var(--celeste-light); }
 
   /* ── TIME SLOTS ── */
   .slots-title { font-size: 14px; font-weight: 600; color: var(--navy); margin-bottom: 12px; }
@@ -352,45 +359,56 @@
   .slot.occupied { background: var(--border); color: var(--text-muted); cursor: not-allowed; border-color: var(--border); text-decoration: line-through; }
   .slot.admin-reserved { background: #FFF3E0; color: #E65100; border-color: #FFB74D; cursor: not-allowed; font-size: 11px; }
   .slot-visually-occupied {
-    padding: 10px 8px;
+    padding: 12px 8px;
     border-radius: var(--radius-sm);
-    border: 1.5px solid var(--border);
+    border: 1.5px solid #E0E0E0;
     text-align: center;
     font-size: 12px;
-    background: var(--border);
-    color: var(--text-muted);
+    background: #F5F5F5;
+    color: #BDBDBD;
     cursor: not-allowed;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
   }
-  .slot-visually-occupied span { font-weight: 500; text-decoration: line-through; }
-  .slot-visually-occupied small { font-size: 10px; opacity: 0.7; }
+  .slot-visually-occupied span { font-weight: 500; text-decoration: line-through; font-size: 13px; }
+  .slot-visually-occupied small { font-size: 10px; opacity: 0.8; color: #E53935; font-weight: 600; }
   .slot-available-highlight {
-    padding: 10px 8px;
+    padding: 12px 8px;
     border-radius: var(--radius-sm);
-    border: 2px solid #1A6B8A;
+    border: 2.5px solid #1A6B8A;
     text-align: center;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.15s;
-    background: var(--celeste-light);
-    color: var(--navy);
+    background: linear-gradient(135deg, #E8F6FC, #D6F0F8);
+    color: #1A6B8A;
     position: relative;
+    box-shadow: 0 2px 8px rgba(26,107,138,0.15);
   }
   .slot-available-highlight::after {
-    content: '✓ Libre';
+    content: '✓ Disponible';
     display: block;
     font-size: 10px;
-    font-weight: 400;
+    font-weight: 500;
     color: var(--sage);
+    margin-top: 2px;
   }
-  .slot-available-highlight:hover, .slot-available-highlight.selected {
+  .slot-available-highlight:hover {
     background: linear-gradient(135deg, #1A6B8A, #2196C4);
     color: white;
     border-color: #1A6B8A;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(26,107,138,0.3);
+  }
+  .slot-available-highlight:hover::after { color: rgba(255,255,255,0.8); }
+  .slot-available-highlight.selected {
+    background: linear-gradient(135deg, #1A6B8A, #2196C4);
+    color: white;
+    border-color: #1A6B8A;
+    box-shadow: 0 4px 12px rgba(26,107,138,0.3);
   }
   .slot-available-highlight.selected::after { color: rgba(255,255,255,0.8); }
 
@@ -422,24 +440,24 @@
   .form-group textarea { resize: vertical; min-height: 80px; }
 
   /* ── PRIMERA VISITA ── */
-  .primera-visita-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 8px 0; }
-  @media(max-width: 400px) { .primera-visita-grid { grid-template-columns: 1fr; } }
+  .primera-visita-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0; }
   .primera-card {
-    padding: 24px 16px;
-    border: 2px solid var(--border);
+    padding: 20px 12px;
+    border: 2.5px solid var(--border);
     border-radius: var(--radius);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.25s;
     background: var(--cream);
     text-align: center;
+    position: relative;
   }
-  .primera-card:hover { border-color: var(--navy); transform: translateY(-2px); box-shadow: var(--shadow); }
-  .primera-card.selected { border-color: var(--navy); background: linear-gradient(135deg, #1A6B8A, #2196C4); }
+  .primera-card:hover { border-color: #2196C4; transform: translateY(-3px); box-shadow: 0 8px 24px rgba(26,107,138,0.15); }
+  .primera-card.selected { border-color: var(--navy); background: linear-gradient(135deg, #1A6B8A, #2196C4); box-shadow: 0 8px 24px rgba(26,107,138,0.3); }
   .primera-card.selected .primera-title,
   .primera-card.selected .primera-sub { color: white; }
-  .primera-icon { font-size: 36px; margin-bottom: 12px; }
-  .primera-title { font-weight: 700; font-size: 15px; color: var(--navy); margin-bottom: 6px; line-height: 1.3; }
-  .primera-sub { font-size: 12px; color: var(--text-muted); }
+  .primera-icon { font-size: 32px; margin-bottom: 10px; }
+  .primera-title { font-weight: 700; font-size: 14px; color: var(--navy); margin-bottom: 4px; line-height: 1.3; }
+  .primera-sub { font-size: 11px; color: var(--text-muted); line-height: 1.3; }
   .primera-card.selected .primera-sub { color: rgba(255,255,255,0.8); }
 
   /* ── BUTTONS ── */
@@ -1049,18 +1067,22 @@
     <!-- STEP 2: PRIMERA VISITA -->
     <div id="step2" class="step-content" style="display:none">
       <div class="card">
-        <h2>¡Bienvenido!</h2>
-        <p class="subtitle">Una pregunta rápida antes de continuar</p>
+        <div style="text-align:center; margin-bottom:20px">
+          <div style="font-size:36px; margin-bottom:12px">👋</div>
+          <h2 style="margin-bottom:8px">Una pregunta rápida</h2>
+          <p style="font-size:16px; color:var(--navy); font-weight:600; margin-bottom:4px">¿El paciente asiste por primera vez a consulta?</p>
+          <p class="subtitle" style="margin-bottom:0">Esto nos ayuda a preparar mejor su atención</p>
+        </div>
         <div class="primera-visita-grid">
           <div class="primera-card" data-primera="si">
             <div class="primera-icon">🌟</div>
-            <div class="primera-title">Sí, es mi primera visita</div>
-            <div class="primera-sub">Nunca he consultado en esta clínica</div>
+            <div class="primera-title">Sí, es la primera vez</div>
+            <div class="primera-sub">Nunca ha consultado en esta clínica</div>
           </div>
           <div class="primera-card" data-primera="no">
-            <div class="primera-icon">👋</div>
-            <div class="primera-title">Ya he consultado antes</div>
-            <div class="primera-sub">Soy paciente de la clínica</div>
+            <div class="primera-icon">🔄</div>
+            <div class="primera-title">Ya ha consultado antes</div>
+            <div class="primera-sub">Es paciente de la clínica</div>
           </div>
         </div>
         <button class="btn-secondary" id="btnBackToStep1" style="margin-top:16px; width:100%">← Cambiar especialidad</button>
@@ -1187,9 +1209,15 @@
       <div class="reminder-icon">⏰</div>
       <div class="reminder-text">
         <strong>¡Configura la agenda de mañana!</strong>
-        <span>Revisa los bloqueos del día siguiente antes de cerrar.</span>
+        <span id="reminderSubtext">Revisa los bloqueos del día siguiente antes de cerrar.</span>
       </div>
       <button class="reminder-dismiss" id="reminderDismiss">Configurar ahora →</button>
+    </div>
+
+    <!-- PRÓXIMAS CITAS BANNER -->
+    <div id="proximasCitasBanner" style="display:none; background:var(--warm-white); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:8px">📋 Pacientes agendados próximos días</div>
+      <div id="proximasCitasList"></div>
     </div>
 
     <!-- TABS -->
@@ -1352,6 +1380,26 @@
     <div class="modal-actions">
       <button class="btn-secondary" data-closemodal="modalReagendar">Cancelar</button>
       <button class="btn-primary" id="btnGuardarReagenda">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DÍA FUTURO -->
+<div class="modal-overlay" id="modalFuturo">
+  <div class="modal">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:40px;margin-bottom:8px">📅</div>
+      <h3 style="margin-bottom:8px">Programación no disponible</h3>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.5" id="futuroMsg">
+        La agenda para este día aún no ha sido configurada por nuestro equipo.
+      </p>
+    </div>
+    <div style="background:var(--celeste-light);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;font-size:13px;color:var(--navy);line-height:1.5">
+      💡 Puedes unirte a la <strong>lista de espera</strong> indicando tu horario preferido. Te contactaremos en cuanto haya disponibilidad confirmada.
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" data-closemodal="modalFuturo">Cerrar</button>
+      <button class="btn-primary" id="btnEsperaFromFuturo">Unirme a lista de espera →</button>
     </div>
   </div>
 </div>
@@ -1598,7 +1646,8 @@ window.selectPrimeraVisita = (esPrimera) => {
   const now = new Date();
   S.calYear = now.getFullYear(); S.calMonth = now.getMonth();
   renderCalendar();
-  goStep(3);
+  // Small delay so user sees selection animation before advancing
+  setTimeout(() => goStep(3), 350);
 };
 
 // ── CALENDAR ──────────────────────────────────────────
@@ -1610,36 +1659,37 @@ function isAvailableDay(year, month, day) {
   const d = new Date(year, month, day);
   const dow = d.getDay();
   if (dow === 0) return false; // domingo siempre bloqueado
-
   const mid = getMedicoId();
   if (!mid) return false;
   const h = HORARIOS[mid];
-  if (!h.diasSemana.includes(dow)) return false;
+  return h.diasSemana.includes(dow);
+}
 
-  // Solo hoy y mañana (mañana visible solo tras fin de jornada)
+function isDayBookable(year, month, day) {
+  // Returns: 'available' | 'tomorrow_pending' | 'future' | 'unavailable'
+  const d = new Date(year, month, day);
+  const dow = d.getDay();
+  if (dow === 0) return 'unavailable';
+  const mid = getMedicoId();
+  if (!mid) return 'unavailable';
+  if (!HORARIOS[mid].diasSemana.includes(dow)) return 'unavailable';
+
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-  // Skip sunday for tomorrow
   if (tomorrow.getDay() === 0) tomorrow.setDate(tomorrow.getDate() + 1);
-
   const target = new Date(year, month, day);
-  const isToday = target.getTime() === today.getTime();
-  const isTomorrow = target.getTime() === tomorrow.getTime();
 
-  if (!isToday && !isTomorrow) return false;
+  if (target.getTime() === today.getTime()) return 'available';
 
-  // Mañana solo visible después del fin de jornada de hoy
-  if (isTomorrow) {
+  if (target.getTime() === tomorrow.getTime()) {
     const todayDow = now.getDay();
-    const hour = now.getHours() * 60 + now.getMinutes();
-    // Fin de jornada: lun-jue 17:00, vie 15:00, sab 14:00
-    const finJornada = (todayDow >= 1 && todayDow <= 4) ? 17*60 :
-                       todayDow === 5 ? 15*60 : 14*60;
-    if (hour < finJornada) return false;
+    const mins = now.getHours() * 60 + now.getMinutes();
+    const fin = (todayDow >= 1 && todayDow <= 4) ? 17*60 : todayDow === 5 ? 15*60 : 14*60;
+    return mins >= fin ? 'available' : 'tomorrow_pending';
   }
 
-  return true;
+  return 'future';
 }
 
 function renderCalendar() {
@@ -1968,9 +2018,76 @@ function initPersonalView() {
   loadBloqueos();
   loadBloqueosActivos();
   checkReminderBanner();
+  loadProximasCitas();
   // Re-check every 5 minutes in case bloqueos were added
   if (window._reminderInterval) clearInterval(window._reminderInterval);
   window._reminderInterval = setInterval(checkReminderBanner, 5 * 60 * 1000);
+}
+
+async function loadProximasCitas() {
+  const banner = document.getElementById('proximasCitasBanner');
+  const list = document.getElementById('proximasCitasList');
+  if (!banner || !list) return;
+
+  // Get next 7 days (excluding today)
+  const today = new Date();
+  const fechas = [];
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    if (d.getDay() !== 0) fechas.push(dateToStr(d)); // skip sunday
+  }
+
+  try {
+    const proximasCitas = [];
+    for (const fecha of fechas) {
+      const q = query(window._col, where('fecha','==',fecha), where('estado','!=','cancelada'));
+      // Use simple query
+      const q2 = query(window._col, where('fecha','==',fecha));
+      const snap = await getDocs(q2);
+      snap.forEach(d => {
+        if (d.data().estado !== 'cancelada') {
+          proximasCitas.push({...d.data(), _docId: d.id});
+        }
+      });
+    }
+
+    if (proximasCitas.length === 0) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    // Group by date
+    const byDate = {};
+    proximasCitas.forEach(c => {
+      if (!byDate[c.fecha]) byDate[c.fecha] = [];
+      byDate[c.fecha].push(c);
+    });
+
+    list.innerHTML = '';
+    Object.keys(byDate).sort().forEach(fecha => {
+      const d = new Date(fecha + 'T12:00:00');
+      const label = d.toLocaleDateString('es-GT', {weekday:'long', day:'numeric', month:'long'});
+      const citas = byDate[fecha].sort((a,b) => a.hora.localeCompare(b.hora));
+      const div = document.createElement('div');
+      div.style.cssText = 'margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)';
+      div.innerHTML = `<div style="font-size:12px;font-weight:600;color:var(--navy);text-transform:capitalize;margin-bottom:4px">${label} — ${citas.length} cita${citas.length>1?'s':''}</div>` +
+        citas.map(c => `<div style="font-size:12px;color:var(--text-muted);padding:2px 0">
+          ${formatTime(c.hora)} · ${c.nombre} · ${c.especialidad}
+        </div>`).join('');
+      list.appendChild(div);
+    });
+
+    // Update reminder subtext with real patient info
+    const sub = document.getElementById('reminderSubtext');
+    if (sub && proximasCitas.length > 0) {
+      sub.textContent = `Tienes ${proximasCitas.length} paciente${proximasCitas.length>1?'s':''} agendado${proximasCitas.length>1?'s':''} en los próximos días. Configura los bloqueos.`;
+    }
+
+    banner.style.display = 'block';
+  } catch(e) {
+    console.log('Error loading proximas citas:', e);
+  }
 }
 
 async function checkReminderBanner() {
@@ -2326,6 +2443,18 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 });
 
 // ── LISTA DE ESPERA ───────────────────────────────────
+window.showFutureModal = (fechaLabel) => {
+  const msg = document.getElementById('futuroMsg');
+  if (msg) {
+    if (fechaLabel === 'mañana') {
+      msg.textContent = 'La agenda de mañana estará disponible al finalizar la jornada de hoy. Mientras tanto puedes unirte a la lista de espera.';
+    } else {
+      msg.textContent = `La agenda para el ${fechaLabel} aún no ha sido configurada por nuestro equipo.`;
+    }
+  }
+  openModal('modalFuturo');
+};
+
 window.loadEspera = async (filtro = 'todas') => {
   const list = document.getElementById('esperaList');
   list.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando...</div>';
@@ -2454,6 +2583,13 @@ function initAllListeners() {
   // Back to step1 from step2
   const bb1 = document.getElementById('btnBackToStep1');
   if (bb1) bb1.addEventListener('click', () => goStep(1));
+
+  // Futuro modal → espera
+  const beff = document.getElementById('btnEsperaFromFuturo');
+  if (beff) beff.addEventListener('click', () => {
+    closeModal('modalFuturo');
+    openModal('modalEspera');
+  });
 
   // Lista de espera — unirse button
   const bue = document.getElementById('btnUnirseEspera');
