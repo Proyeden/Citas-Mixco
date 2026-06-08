@@ -5,6 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Clínica Médica Juan Ciudad Duarte — Citas</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  // EmailJS — notificación automática al confirmar cita
+  // Para activar: crear cuenta en emailjs.com, obtener Public Key,
+  // crear template y reemplazar los valores abajo
+  window.EMAILJS_CONFIG = {
+    publicKey: 'TU_PUBLIC_KEY',      // reemplazar
+    serviceId: 'TU_SERVICE_ID',      // reemplazar
+    templateId: 'TU_TEMPLATE_ID',    // reemplazar
+    toEmail: 'denis@clinica.com',    // reemplazar con tu correo
+    enabled: false  // cambiar a true cuando configures EmailJS
+  };
+</script>
 <style>
   :root {
     --cream: #F0F7FB;
@@ -1087,7 +1100,7 @@
         <div class="confirm-id" id="confirmId"></div>
         <p>¡Tu cita ha sido registrada!</p>
         <p>Llega 10 minutos antes de tu cita</p>
-        <p style="font-size:12px; opacity:0.7; margin-top:6px">📲 Notificación enviada al equipo</p>
+        <p style="font-size:12px; opacity:0.7; margin-top:6px">✅ El equipo ha sido notificado</p>
         <div class="confirm-detail" id="confirmDetail"></div>
       </div>
       <div class="card" style="text-align:center">
@@ -1631,12 +1644,15 @@ async function renderSlots() {
   const adminBlocked = new Set(); // bloqueos admin (directo/estrategia)
 
   try {
+    // Simple 2-field query (no composite index needed)
     const q = query(window._col,
       where('fecha','==',dateStr),
-      where('medicoId','==',mid),
-      where('estado','!=','cancelada'));
+      where('medicoId','==',mid));
     const snap = await getDocs(q);
-    snap.forEach(d => occupied.add(d.data().hora));
+    // Filter canceladas in JS
+    snap.forEach(d => {
+      if (d.data().estado !== 'cancelada') occupied.add(d.data().hora);
+    });
 
     const bq = query(window._blCol,
       where('fecha','==',dateStr),
@@ -1645,14 +1661,12 @@ async function renderSlots() {
     bsnap.forEach(d => {
       const tipo = d.data().tipo || 'admin';
       if (tipo === 'directo') {
-        // Paciente directo = ancla real, se comporta igual que cita web
         occupied.add(d.data().hora);
       } else {
-        // Estrategia / administrativo = invisible, no ancla
         adminBlocked.add(d.data().hora);
       }
     });
-  } catch(e) { console.log('Firebase error', e); }
+  } catch(e) { console.log('Firebase error:', e); }
 
   // ── LÓGICA DE VISIBILIDAD PÚBLICA ─────────────────────────────────────
   // Regla simple: siempre mostrar los 2 slots más tempranos del día
@@ -1755,25 +1769,62 @@ window.confirmarCita = async () => {
     local.push(cita); localStorage.setItem('citas_local', JSON.stringify(local));
   }
 
-  // WhatsApp notification to clinic
+  // Notificación automática al equipo
   const fechaStr = S.selectedDate.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const horaStr = formatTime(S.selectedSlot);
-  const padreStr = cita.padre ? `\n👤 Responsable: ${cita.padre}` : '';
-  const correoStr = cita.correo ? `\n📧 ${cita.correo}` : '';
-  const waMsg = encodeURIComponent(
-    `🏥 *Nueva cita agendada*\n\n` +
-    `📋 *#${id}*\n` +
-    `👤 Paciente: ${nombre}${padreStr}\n` +
-    `🩺 Especialidad: ${NOMBRES_ESP[S.especialidad]}\n` +
-    `📅 Fecha: ${fechaStr}\n` +
-    `🕐 Hora: ${horaStr}\n` +
-    `📞 Teléfono: ${tel}${correoStr}\n` +
-    `💳 Valor: Q${S.precio}`
-  );
-  // Open WhatsApp after short delay so confirmation screen shows first
-  setTimeout(() => {
-    window.open(`https://wa.me/50242146520?text=${waMsg}`, '_blank');
-  }, 800);
+  const padreStr = cita.padre ? `👤 Responsable: ${cita.padre}` : '';
+  const correoStr = cita.correo ? `📧 ${cita.correo}` : '';
+
+  const notifMsg =
+    `🏥 Nueva cita #${id}\n` +
+    `👤 ${nombre}${cita.padre ? ' | Resp: '+cita.padre : ''}\n` +
+    `🩺 ${NOMBRES_ESP[S.especialidad]}\n` +
+    `📅 ${fechaStr} — ${horaStr}\n` +
+    `📞 ${tel}${cita.correo ? ' | '+cita.correo : ''}\n` +
+    `💳 Q${S.precio}`;
+
+  // Intentar EmailJS primero (automático, no depende del paciente)
+  const ejsCfg = window.EMAILJS_CONFIG;
+  if (ejsCfg && ejsCfg.enabled) {
+    emailjs.init(ejsCfg.publicKey);
+    emailjs.send(ejsCfg.serviceId, ejsCfg.templateId, {
+      to_email: ejsCfg.toEmail,
+      subject: `Nueva cita #${id} — ${NOMBRES_ESP[S.especialidad]}`,
+      message: notifMsg,
+      paciente: nombre,
+      especialidad: NOMBRES_ESP[S.especialidad],
+      fecha: fechaStr,
+      hora: horaStr,
+      telefono: tel,
+      precio: `Q${S.precio}`,
+      cita_id: id
+    }).catch(e => console.log('EmailJS error:', e));
+  }
+
+  // Notificación automática via Make.com webhook
+  try {
+    await fetch('https://hook.us2.make.com/ikbjgcxbi0ixaef3pyh2e1mx47rfkpcc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id,
+        paciente: nombre,
+        padre: cita.padre || '',
+        especialidad: NOMBRES_ESP[S.especialidad],
+        fecha: fechaStr,
+        hora: horaStr,
+        telefono: tel,
+        correo: cita.correo || '',
+        precio: `Q${S.precio}`,
+        tipo: cita.tipo,
+        medico: medico.nombre,
+        notificar: ['50242146520', '50255370427']
+      })
+    });
+    console.log('✅ Webhook enviado a Make.com');
+  } catch(e) {
+    console.log('⚠️ Error enviando webhook:', e);
+  }
 
   // Show confirmation
   document.getElementById('confirmId').textContent = `Cita #${id}`;
@@ -1897,9 +1948,10 @@ async function loadAgenda() {
   let citas = [];
 
   try {
+    // Simple query without orderBy to avoid composite index requirement
     const q = S.filterMedico === 'todos'
-      ? query(window._col, where('fecha','==',dateStr), orderBy('hora'))
-      : query(window._col, where('fecha','==',dateStr), where('medicoNombre','==',S.filterMedico), orderBy('hora'));
+      ? query(window._col, where('fecha','==',dateStr))
+      : query(window._col, where('fecha','==',dateStr), where('medicoNombre','==',S.filterMedico));
     const snap = await getDocs(q);
     snap.forEach(d => citas.push({...d.data(), _docId: d.id}));
   } catch(e) {
@@ -2021,9 +2073,9 @@ window.loadReagSlots = async () => {
 
   const occupied = new Set();
   try {
-    const q = query(window._col, where('fecha','==',fecha), where('medicoId','==',mid), where('estado','!=','cancelada'));
+    const q = query(window._col, where('fecha','==',fecha), where('medicoId','==',mid));
     const snap = await getDocs(q);
-    snap.forEach(d => occupied.add(d.data().hora));
+    snap.forEach(d => { if (d.data().estado !== 'cancelada') occupied.add(d.data().hora); });
   } catch(e) {}
 
   const c = document.getElementById('reagSlotsContainer');
@@ -2067,9 +2119,9 @@ window.loadBloqueos = async () => {
   const occupied = new Set();
   const blocked = new Set();
   try {
-    const q = query(window._col, where('fecha','==',fecha), where('medicoId','==',medicoId), where('estado','!=','cancelada'));
+    const q = query(window._col, where('fecha','==',fecha), where('medicoId','==',medicoId));
     const snap = await getDocs(q);
-    snap.forEach(d => occupied.add(d.data().hora));
+    snap.forEach(d => { if (d.data().estado !== 'cancelada') occupied.add(d.data().hora); });
     const bq = query(window._blCol, where('fecha','==',fecha), where('medicoId','==',medicoId));
     const bsnap = await getDocs(bq);
     bsnap.forEach(d => blocked.add(d.data().hora));
