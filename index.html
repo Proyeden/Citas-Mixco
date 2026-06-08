@@ -1820,6 +1820,8 @@ window.selectSpecialty = (esp, el) => {
   document.getElementById('step3Title').textContent = NOMBRES_ESP[esp];
   // price determined internally, shown only at confirmation
 
+  // Find first available date (today or next open day)
+  findFirstAvailableDate().then(() => renderCalendar());
   setTimeout(()=>goStep(2), 200); // goes to primera visita step
 };
 
@@ -1836,7 +1838,10 @@ window.selectPrimeraVisita = (esPrimera) => {
   // Price shown only at confirmation — not here
   const now = new Date();
   S.calYear = now.getFullYear(); S.calMonth = now.getMonth();
-  renderCalendar();
+  // Find first available date before rendering calendar
+  findFirstAvailableDate().then(() => {
+    renderCalendar();
+  });
   // Small delay so user sees selection animation before advancing
   setTimeout(() => goStep(3), 350);
 };
@@ -1856,6 +1861,52 @@ function isAvailableDay(year, month, day) {
   return h.diasSemana.includes(dow);
 }
 
+// Cache: first available date found (today or next open day)
+window._firstAvailableDate = null;
+
+async function isDayFull(dateStr, mid) {
+  // Returns true if all slots for this medico/date are taken
+  const d = new Date(dateStr + 'T12:00:00');
+  const dow = d.getDay();
+  const allSlots = HORARIOS[mid] ? HORARIOS[mid].slots(dow) : [];
+  if (allSlots.length === 0) return true;
+
+  const occupied = new Set();
+  try {
+    const q = query(window._col, where('fecha','==',dateStr), where('medicoId','==',mid));
+    const snap = await getDocs(q);
+    snap.forEach(doc => { if (doc.data().estado !== 'cancelada') occupied.add(doc.data().hora); });
+    const bq = query(window._blCol, where('fecha','==',dateStr), where('medicoId','==',mid));
+    const bsnap = await getDocs(bq);
+    bsnap.forEach(doc => occupied.add(doc.data().hora));
+  } catch(e) {}
+
+  return allSlots.every(s => occupied.has(s));
+}
+
+async function findFirstAvailableDate() {
+  // Find first date (from today) that has free slots
+  // Search up to 30 days ahead
+  const mid = getMedicoId();
+  if (!mid) return null;
+
+  const now = new Date();
+  for (let i = 0; i <= 30; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    const dow = d.getDay();
+    if (dow === 0) continue; // skip sunday
+    if (!HORARIOS[mid].diasSemana.includes(dow)) continue;
+    const dateStr = dateToStr(d);
+    const full = await isDayFull(dateStr, mid);
+    if (!full) {
+      window._firstAvailableDate = dateStr;
+      return dateStr;
+    }
+  }
+  window._firstAvailableDate = null;
+  return null;
+}
+
 function isDayBookable(year, month, day) {
   // Returns: 'available' | 'tomorrow_pending' | 'future' | 'unavailable'
   const d = new Date(year, month, day);
@@ -1867,19 +1918,33 @@ function isDayBookable(year, month, day) {
 
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-  if (tomorrow.getDay() === 0) tomorrow.setDate(tomorrow.getDate() + 1);
   const target = new Date(year, month, day);
+  const targetStr = dateToStr(target);
+  const todayStr = dateToStr(today);
 
+  // Today is always available (for booking if slots exist)
   if (target.getTime() === today.getTime()) return 'available';
 
-  if (target.getTime() === tomorrow.getTime()) {
-    const todayDow = now.getDay();
-    const mins = now.getHours() * 60 + now.getMinutes();
-    const fin = (todayDow >= 1 && todayDow <= 4) ? 17*60 : todayDow === 5 ? 15*60 : 14*60;
-    return mins >= fin ? 'available' : 'tomorrow_pending';
+  // If this day is the first available date found → open it
+  if (window._firstAvailableDate && targetStr === window._firstAvailableDate && targetStr !== todayStr) {
+    return 'available';
   }
 
+  // Check if jornada has ended today → open next business day
+  const todayDow = now.getDay();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const fin = (todayDow >= 1 && todayDow <= 4) ? 17*60 : todayDow === 5 ? 15*60 : 14*60;
+  const jornadaEnded = mins >= fin;
+
+  // Next business day after today
+  const nextDay = new Date(today);
+  nextDay.setDate(today.getDate() + 1);
+  if (nextDay.getDay() === 0) nextDay.setDate(nextDay.getDate() + 1);
+  const nextDayStr = dateToStr(nextDay);
+
+  if (targetStr === nextDayStr && jornadaEnded) return 'available';
+
+  // Pending days → lista de espera
   return 'future';
 }
 
@@ -1911,9 +1976,25 @@ function renderCalendar() {
       dayDiv.className = 'cal-day past unavailable';
 
     } else if (bookable === 'available') {
-      // Hoy (o mañana tras fin jornada) — puede agendar
+      // Hoy (o día abierto) — puede agendar, pero verificar si está lleno
       dayDiv.className = 'cal-day available' + (isSel ? ' selected' : '') + (isToday ? ' today' : '');
-      dayDiv.addEventListener('click', () => selectDate(y, m2, d));
+      dayDiv.addEventListener('click', async () => {
+        const fechaStr = `${y}-${String(m2+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const mid = getMedicoId();
+        if (mid) {
+          const full = await isDayFull(fechaStr, mid);
+          if (full) {
+            // Day is full → go to espera
+            const dateLabel = date.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
+            document.getElementById('futuroMsg').innerHTML =
+              `Lamentablemente la agenda del<br><strong style="color:var(--navy);font-size:18px;display:block;margin:8px 0;text-transform:capitalize">${dateLabel}</strong>ya está completa. Déjanos tus datos y te contactamos para gestionar tu cita.`;
+            document.getElementById('esperaFecha').value = fechaStr;
+            openModal('modalFuturo');
+            return;
+          }
+        }
+        selectDate(y, m2, d);
+      });
 
     } else {
       // tomorrow_pending o future — se ve como día normal (no highlighted)
@@ -2651,7 +2732,10 @@ async function loadBloqueosActivos() {
     const snap = await getDocs(window._blCol);
     const bloqueos = [];
     snap.forEach(d => bloqueos.push({...d.data(), _docId: d.id}));
-    const futuros = bloqueos.filter(b => b.fecha >= hoy).sort((a,b)=>a.fecha.localeCompare(b.fecha)||a.hora.localeCompare(b.hora));
+    // Only show today and future, sorted by date then time
+    const futuros = bloqueos
+      .filter(b => b.fecha >= hoy)
+      .sort((a,b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora));
 
     if (futuros.length===0) { c.innerHTML='<p style="color:var(--text-muted);font-size:14px">No hay bloqueos activos</p>'; return; }
     c.innerHTML = '';
