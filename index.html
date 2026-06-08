@@ -1798,11 +1798,15 @@ function renderCalendar() {
 }
 
 window.calPrev = () => {
+  const now = new Date();
+  if (S.calYear === now.getFullYear() && S.calMonth === now.getMonth()) return; // can't go before current month
   S.calMonth--;
   if (S.calMonth<0){S.calMonth=11;S.calYear--;}
   renderCalendar();
 };
 window.calNext = () => {
+  const now = new Date();
+  // Allow max 1 month ahead — but all future days show espera modal anyway
   S.calMonth++;
   if(S.calMonth>11){S.calMonth=0;S.calYear++;}
   renderCalendar();
@@ -2234,16 +2238,7 @@ async function checkReminderBanner() {
   document.getElementById('reminderBanner').style.display = 'flex';
 }
 
-window.switchTab = (tab) => {
-  S.currentTab = tab;
-  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-  event.currentTarget.classList.add('active');
-  ['tabAgenda','tabBloquear','tabConfig'].forEach(id=>{
-    document.getElementById(id).style.display='none';
-  });
-  document.getElementById(`tab${tab.charAt(0).toUpperCase()+tab.slice(1)}`).style.display='block';
-  if (tab==='bloquear') { loadBloqueos(); loadBloqueosActivos(); }
-};
+// switchTab handled via event listeners in initAllListeners
 
 function updatePersonalDateDisplay() {
   const opts = {weekday:'long',day:'numeric',month:'long',year:'numeric'};
@@ -2782,7 +2777,7 @@ function initAllListeners() {
     // Switch to bloquear tab
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-tab')[1].classList.add('active');
-    ['tabAgenda','tabBloquear','tabConfig'].forEach(id => document.getElementById(id).style.display='none');
+    ['tabAgenda','tabBloquear','tabEspera','tabConfig'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
     document.getElementById('tabBloquear').style.display = 'block';
     // Set fecha to tomorrow
     document.getElementById('blockFecha').value = dateToStr(tomorrow);
@@ -2829,11 +2824,13 @@ function initAllListeners() {
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
       btn.classList.add('active');
       ['tabAgenda','tabBloquear','tabEspera','tabConfig'].forEach(id => {
-        document.getElementById(id).style.display = 'none';
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
       });
       const tab = btn.dataset.tab;
       const tabId = 'tab' + tab.charAt(0).toUpperCase() + tab.slice(1);
-      document.getElementById(tabId).style.display = 'block';
+      const tabEl = document.getElementById(tabId);
+      if (tabEl) tabEl.style.display = 'block';
       S.currentTab = tab;
       if (tab === 'bloquear') { loadBloqueos(); loadBloqueosActivos(); }
       if (tab === 'espera') { loadEspera('todas'); }
