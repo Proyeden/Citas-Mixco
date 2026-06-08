@@ -78,6 +78,52 @@ document.getElementById('pwa-manifest').href = manifestURL;
     min-height: 100vh;
   }
 
+  /* ── SCROLL FADE INDICATOR ── */
+  /* Fades bottom of page to hint at more content below */
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(to bottom, transparent, rgba(242,247,244,0.95));
+    pointer-events: none;
+    z-index: 50;
+    transition: opacity 0.3s;
+  }
+  body.scrolled-to-bottom::after {
+    opacity: 0;
+  }
+
+  /* Bounce arrow at bottom of viewport */
+  .scroll-arrow {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--navy);
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    z-index: 51;
+    pointer-events: none;
+    animation: bounce-arrow 1.5s infinite;
+    transition: opacity 0.3s;
+    opacity: 0;
+    box-shadow: 0 2px 12px rgba(26,107,138,0.35);
+  }
+  .scroll-arrow.visible { opacity: 1; }
+  @keyframes bounce-arrow {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(5px); }
+  }
+
   /* ── HEADER ── */
   .site-header {
     background: linear-gradient(135deg, #1A6B8A 0%, #2196C4 60%, #4BBFE0 100%);
@@ -155,7 +201,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
   .container {
     max-width: 680px;
     margin: 0 auto;
-    padding: 20px 12px 60px;
+    padding: 14px 12px 60px;
   }
 
   /* ── VIEWS ── */
@@ -172,7 +218,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
     align-items: center;
     justify-content: center;
     gap: 0;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
     padding: 0 4px;
   }
   .step {
@@ -210,21 +256,21 @@ document.getElementById('pwa-manifest').href = manifestURL;
   .card {
     background: var(--warm-white);
     border-radius: var(--radius);
-    padding: 20px 16px;
+    padding: 16px 14px;
     box-shadow: var(--shadow);
     border: 1px solid var(--border);
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
   .card h2 {
     font-family: 'Playfair Display', serif;
-    font-size: 20px;
+    font-size: 18px;
     color: var(--navy);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
   .card .subtitle {
-    font-size: 14px;
+    font-size: 13px;
     color: var(--text-muted);
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
 
   /* ── SPECIALTY GRID ── */
@@ -238,7 +284,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
     background: var(--cream);
     border: 2px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 16px 10px;
+    padding: 14px 10px;
     cursor: pointer;
     transition: all 0.2s;
     text-align: center;
@@ -248,7 +294,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 100px;
+    min-height: 90px;
   }
   .specialty-card::before {
     content: '';
@@ -265,9 +311,9 @@ document.getElementById('pwa-manifest').href = manifestURL;
   .specialty-card.selected .spec-name,
   .specialty-card.selected .spec-desc { color: white; }
 
-  .spec-icon { font-size: 24px; margin-bottom: 8px; position: relative; }
-  .spec-name { font-weight: 700; font-size: 13px; color: var(--navy); position: relative; margin-bottom: 2px; line-height: 1.3; }
-  .spec-desc { font-size: 11px; color: var(--text-muted); position: relative; line-height: 1.3; }
+  .spec-icon { font-size: 22px; margin-bottom: 6px; position: relative; }
+  .spec-name { font-weight: 700; font-size: 13px; color: var(--navy); position: relative; margin-bottom: 2px; line-height: 1.2; }
+  .spec-desc { font-size: 11px; color: var(--text-muted); position: relative; line-height: 1.2; }
   .specialty-card.selected .spec-desc { color: rgba(255,255,255,0.7); }
 
   /* ── PRICE TAG ── */
@@ -1084,6 +1130,9 @@ document.getElementById('pwa-manifest').href = manifestURL;
 </head>
 <body>
 
+<!-- SCROLL INDICATOR -->
+<div class="scroll-arrow" id="scrollArrow">▼</div>
+
 <!-- HEADER -->
 <header class="site-header">
   <div class="header-brand">
@@ -1155,7 +1204,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
             <div class="spec-name">Neonatología</div>
             <div class="spec-desc">Recién nacidos</div>
           </div>
-          <div class="specialty-card" data-esp="psicologia" style="grid-column: span 2; max-width: 260px; margin: 0 auto; width:100%">
+          <div class="specialty-card" data-esp="psicologia" style="grid-column: span 2; max-width: 260px; margin: 0 auto; width:100%; margin-bottom: 4px">
             <div class="spec-icon">🧠</div>
             <div class="spec-name">Psicología</div>
             <div class="spec-desc">Bienestar mental</div>
@@ -1239,7 +1288,29 @@ document.getElementById('pwa-manifest').href = manifestURL;
         </div>
         <div class="form-group">
           <label>Fecha de nacimiento *</label>
-          <input type="date" id="fFechaNac" />
+          <div style="display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:8px">
+            <select id="fNacDia" style="padding:12px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:14px;background:var(--cream);color:var(--text);outline:none">
+              <option value="">Día</option>
+            </select>
+            <select id="fNacMes" style="padding:12px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:14px;background:var(--cream);color:var(--text);outline:none">
+              <option value="">Mes</option>
+              <option value="01">Enero</option>
+              <option value="02">Febrero</option>
+              <option value="03">Marzo</option>
+              <option value="04">Abril</option>
+              <option value="05">Mayo</option>
+              <option value="06">Junio</option>
+              <option value="07">Julio</option>
+              <option value="08">Agosto</option>
+              <option value="09">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+            <select id="fNacAnio" style="padding:12px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:14px;background:var(--cream);color:var(--text);outline:none">
+              <option value="">Año</option>
+            </select>
+          </div>
         </div>
         <div class="form-group">
           <label>Teléfono *</label>
@@ -1506,9 +1577,15 @@ document.getElementById('pwa-manifest').href = manifestURL;
       <h3 style="margin-bottom:10px">Programación no disponible</h3>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6" id="futuroMsg"></p>
     </div>
+    <div style="background:var(--celeste-light);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;text-align:center">
+      <p style="font-size:13px;color:var(--navy);margin-bottom:10px">¿Prefieres agendar para <strong>hoy</strong>?</p>
+      <button class="btn-primary" id="btnAgendarHoy" style="width:auto;padding:10px 24px">
+        📋 Ver horarios disponibles hoy
+      </button>
+    </div>
     <div class="modal-actions">
       <button class="btn-secondary" data-closemodal="modalFuturo">Cerrar</button>
-      <button class="btn-primary" id="btnEsperaFromFuturo">Unirme a lista de espera →</button>
+      <button class="btn-primary" id="btnEsperaFromFuturo">Lista de espera →</button>
     </div>
   </div>
 </div>
@@ -2025,12 +2102,15 @@ function formatTime(t) {
 // ── STEP 3: CONFIRMAR ──────────────────────────────────
 window.confirmarCita = async () => {
   const nombre = document.getElementById('fNombre').value.trim();
-  const fechaNac = document.getElementById('fFechaNac').value;
+  const nacDia = document.getElementById('fNacDia').value;
+  const nacMes = document.getElementById('fNacMes').value;
+  const nacAnio = document.getElementById('fNacAnio').value;
+  const fechaNac = nacDia && nacMes && nacAnio ? `${nacAnio}-${nacMes}-${nacDia}` : '';
   const tel = document.getElementById('fTel').value.trim();
   const correo = document.getElementById('fCorreo').value.trim();
   const needsPadre = S.especialidad === 'pediatria' || S.especialidad === 'neonatologia';
   const padre = needsPadre ? document.getElementById('fPadre').value.trim() : '';
-  if (!nombre || !fechaNac || !tel) { alert('Por favor llena los campos requeridos: nombre, fecha de nacimiento y teléfono'); return; }
+  if (!nombre || !fechaNac || !tel) { alert('Por favor llena todos los campos requeridos: nombre, fecha de nacimiento completa y teléfono'); return; }
   if (needsPadre && !padre) { alert('Por favor ingresa el nombre del padre o madre'); return; }
 
   const mid = getMedicoId();
@@ -2134,7 +2214,9 @@ window.resetPatient = () => {
   S.especialidad=null;S.tipo=null;S.precio=0;S.selectedDate=null;S.selectedSlot=null;
   document.querySelectorAll('.primera-card').forEach(c=>c.classList.remove('selected'));
   document.getElementById('fNombre').value='';
-  document.getElementById('fFechaNac').value='';
+  const rd = document.getElementById('fNacDia'); if(rd) rd.value='';
+  const rm = document.getElementById('fNacMes'); if(rm) rm.value='';
+  const ra = document.getElementById('fNacAnio'); if(ra) ra.value='';
   document.getElementById('fTel').value='';
   document.getElementById('fCorreo').value='';
   const fp = document.getElementById('fPadre'); if(fp) fp.value='';
@@ -2720,6 +2802,7 @@ function checkEsperaBanner() {
 // ── INIT ──────────────────────────────────────────────
 updateSteps(1);
 
+
 // ── PWA INSTALL ────────────────────────────────────────
 let _deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -2762,6 +2845,28 @@ async function cleanupOldRecords() {
 
 // ── ALL EVENT LISTENERS (no onclick in HTML) ──────────
 function initAllListeners() {
+  // Populate day dropdown (1-31)
+  const diaEl = document.getElementById('fNacDia');
+  if (diaEl) {
+    for (let d = 1; d <= 31; d++) {
+      const opt = document.createElement('option');
+      opt.value = String(d).padStart(2,'0');
+      opt.textContent = d;
+      diaEl.appendChild(opt);
+    }
+  }
+  // Populate year dropdown (current year down to 1920)
+  const anioEl = document.getElementById('fNacAnio');
+  if (anioEl) {
+    const currentYear = new Date().getFullYear();
+    for (let y = currentYear - 1; y >= 1920; y--) {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = y;
+      anioEl.appendChild(opt);
+    }
+  }
+
 
   // Specialty cards
   document.querySelectorAll('.specialty-card').forEach(card => {
@@ -2809,6 +2914,20 @@ function initAllListeners() {
     loadEspera('todas');
     // Hide banner after viewing
     document.getElementById('esperaNotifBanner').style.display = 'none';
+  });
+
+  // Agendar hoy from futuro modal
+  const bah = document.getElementById('btnAgendarHoy');
+  if (bah) bah.addEventListener('click', () => {
+    closeModal('modalFuturo');
+    // Select today's date and show slots
+    const now = new Date();
+    selectDate(now.getFullYear(), now.getMonth(), now.getDate());
+    // Scroll to slots
+    setTimeout(() => {
+      const sec = document.getElementById('slotsSection');
+      if (sec) sec.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 400);
   });
 
   // Futuro modal → espera
@@ -2991,6 +3110,36 @@ function initAllListeners() {
 }
 // Call immediately — module runs after DOM is ready
 initAllListeners();
+
+// ── SCROLL INDICATOR ──────────────────────────────────
+function updateScrollArrow() {
+  const arrow = document.getElementById('scrollArrow');
+  if (!arrow) return;
+  const scrollTop = window.scrollY || document.documentElement.scrollTop;
+  const scrollHeight = document.documentElement.scrollHeight;
+  const clientHeight = window.innerHeight;
+  const atBottom = scrollTop + clientHeight >= scrollHeight - 40;
+
+  if (atBottom) {
+    arrow.classList.remove('visible');
+    document.body.classList.add('scrolled-to-bottom');
+  } else if (scrollHeight > clientHeight + 80) {
+    arrow.classList.add('visible');
+    document.body.classList.remove('scrolled-to-bottom');
+  } else {
+    arrow.classList.remove('visible');
+    document.body.classList.add('scrolled-to-bottom');
+  }
+}
+
+window.addEventListener('scroll', updateScrollArrow, { passive: true });
+// Check on step change too
+const _origGoStep = window.goStep;
+window.goStep = (n) => {
+  _origGoStep(n);
+  setTimeout(() => { window.scrollTo(0,0); updateScrollArrow(); }, 100);
+};
+updateScrollArrow();
 </script>
 </body>
 </html>
