@@ -351,6 +351,48 @@
   .slot.selected { background: linear-gradient(135deg,#1A6B8A,#2196C4); color: white; border-color: #1A6B8A; }
   .slot.occupied { background: var(--border); color: var(--text-muted); cursor: not-allowed; border-color: var(--border); text-decoration: line-through; }
   .slot.admin-reserved { background: #FFF3E0; color: #E65100; border-color: #FFB74D; cursor: not-allowed; font-size: 11px; }
+  .slot-visually-occupied {
+    padding: 10px 8px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border);
+    text-align: center;
+    font-size: 12px;
+    background: var(--border);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .slot-visually-occupied span { font-weight: 500; text-decoration: line-through; }
+  .slot-visually-occupied small { font-size: 10px; opacity: 0.7; }
+  .slot-available-highlight {
+    padding: 10px 8px;
+    border-radius: var(--radius-sm);
+    border: 2px solid #1A6B8A;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--celeste-light);
+    color: var(--navy);
+    position: relative;
+  }
+  .slot-available-highlight::after {
+    content: '✓ Libre';
+    display: block;
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--sage);
+  }
+  .slot-available-highlight:hover, .slot-available-highlight.selected {
+    background: linear-gradient(135deg, #1A6B8A, #2196C4);
+    color: white;
+    border-color: #1A6B8A;
+  }
+  .slot-available-highlight.selected::after { color: rgba(255,255,255,0.8); }
 
   /* ── FORM ── */
   .form-group { margin-bottom: 16px; }
@@ -1041,7 +1083,10 @@
 
         <!-- Slots -->
         <div id="slotsSection" style="display:none">
-          <div class="slots-title" id="slotsTitle">Horarios disponibles</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div class="slots-title" id="slotsTitle" style="margin-bottom:0">Horarios disponibles</div>
+            <div id="urgenciaMsg" style="display:none;font-size:13px;font-weight:600"></div>
+          </div>
           <div class="slots-grid" id="slotsGrid"></div>
         </div>
 
@@ -1563,13 +1608,38 @@ function getMedicoId() {
 
 function isAvailableDay(year, month, day) {
   const d = new Date(year, month, day);
-  const dow = d.getDay(); // 0=dom
-  // Domingo siempre bloqueado
-  if (dow === 0) return false;
+  const dow = d.getDay();
+  if (dow === 0) return false; // domingo siempre bloqueado
+
   const mid = getMedicoId();
   if (!mid) return false;
   const h = HORARIOS[mid];
-  return h.diasSemana.includes(dow);
+  if (!h.diasSemana.includes(dow)) return false;
+
+  // Solo hoy y mañana (mañana visible solo tras fin de jornada)
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  // Skip sunday for tomorrow
+  if (tomorrow.getDay() === 0) tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const target = new Date(year, month, day);
+  const isToday = target.getTime() === today.getTime();
+  const isTomorrow = target.getTime() === tomorrow.getTime();
+
+  if (!isToday && !isTomorrow) return false;
+
+  // Mañana solo visible después del fin de jornada de hoy
+  if (isTomorrow) {
+    const todayDow = now.getDay();
+    const hour = now.getHours() * 60 + now.getMinutes();
+    // Fin de jornada: lun-jue 17:00, vie 15:00, sab 14:00
+    const finJornada = (todayDow >= 1 && todayDow <= 4) ? 17*60 :
+                       todayDow === 5 ? 15*60 : 14*60;
+    if (hour < finJornada) return false;
+  }
+
+  return true;
 }
 
 function renderCalendar() {
@@ -1627,6 +1697,9 @@ window.selectDate = async (y,m,d) => {
   await renderSlots();
 };
 
+// Show "agenda not available" for future days — handled by isAvailableDay
+// Days beyond today/tomorrow won't be clickable in calendar
+
 async function renderSlots() {
   const sec = document.getElementById('slotsSection');
   sec.style.display = 'block';
@@ -1643,8 +1716,15 @@ async function renderSlots() {
   const occupied = new Set();     // citas reales (web)
   const adminBlocked = new Set(); // bloqueos admin (directo/estrategia)
 
+  // Médicos compartidos entre especialidades
+  const MEDICO_ESPECIALIDADES = {
+    'denis': ['medicina-interna','diabetes'],
+    'nochez': ['pediatria','neonatologia'],
+    'pamela': ['psicologia']
+  };
+
   try {
-    // Simple 2-field query (no composite index needed)
+    // Query por medicoId — cubre todas las especialidades del mismo médico
     const q = query(window._col,
       where('fecha','==',dateStr),
       where('medicoId','==',mid));
@@ -1692,33 +1772,56 @@ async function renderSlots() {
     }
   }
 
-  // ── RENDER ────────────────────────────────────────────────────────────
+  // ── RENDER CON APARIENCIA DE AGENDA SATURADA ──────────────────────────
   grid.innerHTML = '';
 
-  if (publicVisible.size === 0) {
-    grid.innerHTML = '<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:8px">No hay disponibilidad para este día.</p>';
-    const title = S.selectedDate.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
-    document.getElementById('slotsTitle').textContent = `Horarios — ${title}`;
-    return;
-  }
-
-  // Mostrar en orden cronológico
-  allSlots.filter(s => publicVisible.has(s)).forEach(slot => {
+  // Mostrar TODOS los slots del día — los no disponibles aparecen ocupados
+  // Solo los de publicVisible están realmente disponibles
+  allSlots.forEach(slot => {
     const div = document.createElement('div');
-    div.className = 'slot';
-    div.textContent = formatTime(slot);
-    div.addEventListener('click', () => {
-      document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
-      div.classList.add('selected');
-      S.selectedSlot = slot;
-      document.getElementById('btnStep3').disabled = false;
-    });
+    const isAvailable = publicVisible.has(slot);
+    const isReallyOccupied = occupied.has(slot);
+    const isAdminBlocked = adminBlocked.has(slot);
+
+    if (isAvailable) {
+      div.className = 'slot slot-available-highlight';
+      div.textContent = formatTime(slot);
+      div.addEventListener('click', () => {
+        document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
+        div.classList.add('selected');
+        S.selectedSlot = slot;
+        document.getElementById('btnStep3').disabled = false;
+      });
+    } else {
+      // Aparece ocupado al paciente (sin importar la razón real)
+      div.className = 'slot slot-visually-occupied';
+      div.innerHTML = `<span>${formatTime(slot)}</span><small>Ocupado</small>`;
+    }
     grid.appendChild(div);
   });
 
-  const title = S.selectedDate.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
-  document.getElementById('slotsTitle').textContent = `Horarios — ${title}`;
-  // Show espera banner if no slots available
+  // Contador de disponibles
+  const disponibles = publicVisible.size;
+  const total = allSlots.length;
+  const titulo = S.selectedDate.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('slotsTitle').textContent = `Horarios — ${titulo}`;
+
+  // Mensaje de urgencia
+  const urgenciaEl = document.getElementById('urgenciaMsg');
+  if (urgenciaEl) {
+    if (disponibles === 0) {
+      urgenciaEl.innerHTML = '⚠️ <strong>Sin disponibilidad</strong> para este día';
+      urgenciaEl.style.color = 'var(--rose)';
+    } else if (disponibles <= 2) {
+      urgenciaEl.innerHTML = `🔴 Solo quedan <strong>${disponibles} espacio${disponibles>1?'s':''}</strong> disponibles`;
+      urgenciaEl.style.color = 'var(--rose)';
+    } else {
+      urgenciaEl.innerHTML = `${disponibles} espacios disponibles`;
+      urgenciaEl.style.color = 'var(--text-muted)';
+    }
+    urgenciaEl.style.display = 'block';
+  }
+
   checkEsperaBanner();
 }
 
