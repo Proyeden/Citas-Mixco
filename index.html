@@ -2737,7 +2737,7 @@ function initAllListeners() {
 
   // Guardar espera
   const bge = document.getElementById('btnGuardarEspera');
-  if (bge) bge.addEventListener('click', guardarEspera);
+  if (bge) bge.addEventListener('click', () => guardarEspera());
 
   // Espera filter tabs
   document.querySelectorAll('[data-espfilter]').forEach(tab => {
@@ -2804,7 +2804,7 @@ function initAllListeners() {
 
   // Check PIN
   const bcp = document.getElementById('btnCheckPin');
-  if (bcp) bcp.addEventListener('click', checkPin);
+  if (bcp) bcp.addEventListener('click', () => checkPin());
 
   // Salir personal
   const bsp = document.getElementById('btnSalirPersonal');
@@ -2851,15 +2851,15 @@ function initAllListeners() {
 
   // Guardar bloqueo
   const bgb = document.getElementById('btnGuardarBloqueo');
-  if (bgb) bgb.addEventListener('click', guardarBloqueo);
+  if (bgb) bgb.addEventListener('click', () => guardarBloqueo());
 
   // Confirmar cita
   const bcc = document.getElementById('btnConfirmarCita');
-  if (bcc) bcc.addEventListener('click', confirmarCita);
+  if (bcc) bcc.addEventListener('click', () => confirmarCita());
 
   // Reset patient
   const brp = document.getElementById('btnResetPatient');
-  if (brp) brp.addEventListener('click', resetPatient);
+  if (brp) brp.addEventListener('click', () => resetPatient());
 
   // Cerrar app — close tab or go to blank
   const bca = document.getElementById('btnCerrarApp');
@@ -2876,11 +2876,11 @@ function initAllListeners() {
 
   // Modal guardar nota
   const bgn = document.getElementById('btnGuardarNota');
-  if (bgn) bgn.addEventListener('click', guardarNota);
+  if (bgn) bgn.addEventListener('click', () => guardarNota());
 
   // Modal guardar reagenda
   const bgr = document.getElementById('btnGuardarReagenda');
-  if (bgr) bgr.addEventListener('click', guardarReagenda);
+  if (bgr) bgr.addEventListener('click', () => guardarReagenda());
 
   // Block fecha change
   const bf = document.getElementById('blockFecha');
