@@ -1574,13 +1574,13 @@ document.getElementById('pwa-manifest').href = manifestURL;
   <div class="modal">
     <div style="text-align:center;margin-bottom:20px">
       <div style="font-size:40px;margin-bottom:8px">📅</div>
-      <h3 style="margin-bottom:10px">Programación no disponible</h3>
+      <h3 style="margin-bottom:10px" id="modalFuturoTitle">Programación no disponible</h3>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6" id="futuroMsg"></p>
     </div>
     <div style="background:var(--celeste-light);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;text-align:center">
-      <p style="font-size:13px;color:var(--navy);margin-bottom:10px">¿Prefieres agendar para <strong>hoy</strong>?</p>
+      <p style="font-size:13px;color:var(--navy);margin-bottom:10px">¿Prefieres otro día disponible?</p>
       <button class="btn-primary" id="btnAgendarHoy" style="width:auto;padding:10px 24px">
-        📋 Ver horarios disponibles hoy
+        <span id="btnAgendarHoyLabel">📋 Ver horarios disponibles hoy</span>
       </button>
     </div>
     <div class="modal-actions">
@@ -1768,6 +1768,8 @@ window.checkPin = () => {
   }
   if (pin === '260723') {
     document.getElementById('pinError').style.display = 'none';
+    // Save session so assistant doesn't need to re-enter PIN during working hours
+    sessionStorage.setItem('clinica_auth', Date.now().toString());
     initPersonalView();
     showView('personalView');
   } else {
@@ -1775,6 +1777,35 @@ window.checkPin = () => {
     for (let i=0;i<6;i++) { const el=document.getElementById(`pd${i}`); if(el) el.value=''; }
     document.getElementById('pd0').focus();
   }
+};
+
+window.showPersonalLogin = () => {
+  // Check if session is still valid (within working hours, same day)
+  const auth = sessionStorage.getItem('clinica_auth');
+  if (auth) {
+    const authTime = parseInt(auth);
+    const now = new Date();
+    const authDate = new Date(authTime);
+    const sameDay = authDate.toDateString() === now.toDateString();
+    const dow = now.getDay();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    // Working hours: lun-jue 12:30-17:30, vie 8:30-15:30, sab 7:30-14:30
+    const inHours =
+      (dow >= 1 && dow <= 4 && mins >= 12*60+30 && mins <= 17*60+30) ||
+      (dow === 5 && mins >= 8*60+30 && mins <= 15*60+30) ||
+      (dow === 6 && mins >= 7*60+30 && mins <= 14*60+30);
+    if (sameDay && inHours) {
+      // Auto-login — no PIN needed
+      initPersonalView();
+      showView('personalView');
+      return;
+    } else {
+      // Session expired — clear it
+      sessionStorage.removeItem('clinica_auth');
+    }
+  }
+  buildPinInputs();
+  showView('personalLoginView');
 };
 
 // ── STEPS ──────────────────────────────────────────────
@@ -1986,9 +2017,17 @@ function renderCalendar() {
           if (full) {
             // Day is full → go to espera
             const dateLabel = date.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
+            // Change modal title and message for full day
             document.getElementById('futuroMsg').innerHTML =
-              `Lamentablemente la agenda del<br><strong style="color:var(--navy);font-size:18px;display:block;margin:8px 0;text-transform:capitalize">${dateLabel}</strong>ya está completa. Déjanos tus datos y te contactamos para gestionar tu cita.`;
+              `No hay citas disponibles para el<br><strong style="color:var(--navy);font-size:18px;display:block;margin:8px 0;text-transform:capitalize">${dateLabel}</strong>`;
             document.getElementById('esperaFecha').value = fechaStr;
+            // Update modal to show "other day" option
+            document.getElementById('modalFuturoTitle').textContent = 'Agenda completa';
+            document.getElementById('btnAgendarHoy').style.display = window._firstAvailableDate && window._firstAvailableDate !== fechaStr ? 'inline-block' : 'none';
+            document.getElementById('btnAgendarHoyLabel').textContent =
+              window._firstAvailableDate
+                ? `📋 Ver disponibilidad del ${new Date(window._firstAvailableDate+'T12:00:00').toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}`
+                : '📋 Ver horarios disponibles hoy';
             openModal('modalFuturo');
             return;
           }
@@ -3000,14 +3039,19 @@ function initAllListeners() {
     document.getElementById('esperaNotifBanner').style.display = 'none';
   });
 
-  // Agendar hoy from futuro modal
+  // Agendar hoy / primer día disponible from futuro modal
   const bah = document.getElementById('btnAgendarHoy');
   if (bah) bah.addEventListener('click', () => {
     closeModal('modalFuturo');
-    // Select today's date and show slots
-    const now = new Date();
-    selectDate(now.getFullYear(), now.getMonth(), now.getDate());
-    // Scroll to slots
+    // Go to first available date or today
+    const target = window._firstAvailableDate
+      ? new Date(window._firstAvailableDate + 'T12:00:00')
+      : new Date();
+    // Update calendar month if needed
+    S.calYear = target.getFullYear();
+    S.calMonth = target.getMonth();
+    renderCalendar();
+    selectDate(target.getFullYear(), target.getMonth(), target.getDate());
     setTimeout(() => {
       const sec = document.getElementById('slotsSection');
       if (sec) sec.scrollIntoView({behavior:'smooth', block:'start'});
