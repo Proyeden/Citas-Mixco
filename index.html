@@ -1405,6 +1405,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
     <!-- TABS -->
     <div class="nav-tabs">
       <button class="nav-tab active" data-tab="agenda">Agenda del día</button>
+      <button class="nav-tab" data-tab="duracion">Duraciones</button>
       <button class="nav-tab" data-tab="bloquear">Bloquear slots</button>
       <button class="nav-tab" data-tab="espera">Lista de espera</button>
       <button class="nav-tab" data-tab="config">Configuración</button>
@@ -1436,6 +1437,36 @@ document.getElementById('pwa-manifest').href = manifestURL;
       </div>
 
       <div id="agendaList"></div>
+    </div>
+
+    <!-- TAB: DURACIONES -->
+    <div id="tabDuracion" style="display:none">
+      <div class="card">
+        <h2>Editar duración de citas</h2>
+        <p class="subtitle">Ajusta la duración de cada slot y los siguientes se recorren automáticamente</p>
+        <div class="form-group" style="display:flex;gap:10px;align-items:flex-end">
+          <div style="flex:1">
+            <label>Médico</label>
+            <select id="durMedico">
+              <option value="denis">Dr. Denis Cotzojay</option>
+              <option value="nochez">Dra. María José Nóchez</option>
+              <option value="pamela">Lic. Pamela Castellanos</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <label>Fecha</label>
+            <input type="date" id="durFecha" />
+          </div>
+          <button class="btn-primary" id="btnCargarDuraciones" style="width:auto;padding:12px 16px;margin:0">Ver agenda</button>
+        </div>
+        <div id="durEditor"></div>
+        <div class="dur-cascade-info" id="durCascadeInfo">
+          ✅ Horarios recalculados automáticamente
+        </div>
+        <div id="durActions" style="display:none;margin-top:12px">
+          <button class="btn-primary" id="btnGuardarDuraciones">💾 Guardar cambios de horario</button>
+        </div>
+      </div>
     </div>
 
     <!-- TAB: BLOQUEAR -->
@@ -2354,6 +2385,8 @@ function initPersonalView() {
   loadAgenda();
   // Set today as default for block
   document.getElementById('blockFecha').value = dateToStr(new Date());
+  const df = document.getElementById('durFecha');
+  if (df) df.value = dateToStr(new Date());
   loadBloqueos();
   loadBloqueosActivos();
   checkReminderBanner();
@@ -2771,26 +2804,72 @@ async function loadBloqueosActivos() {
     const snap = await getDocs(window._blCol);
     const bloqueos = [];
     snap.forEach(d => bloqueos.push({...d.data(), _docId: d.id}));
-    // Only show today and future, sorted by date then time
+
     const futuros = bloqueos
       .filter(b => b.fecha >= hoy)
       .sort((a,b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora));
 
-    if (futuros.length===0) { c.innerHTML='<p style="color:var(--text-muted);font-size:14px">No hay bloqueos activos</p>'; return; }
+    if (futuros.length === 0) {
+      c.innerHTML = '<p style="color:var(--text-muted);font-size:14px">No hay bloqueos activos</p>';
+      return;
+    }
+
     c.innerHTML = '';
+
+    // Group by date
+    const byDate = {};
     futuros.forEach(b => {
-      const d = document.createElement('div');
-      d.className = 'admin-block-card';
-      d.innerHTML = `
-        <div class="admin-block-info">
-          <div class="hora">${formatTime(b.hora)}</div>
-          <div class="tipo">${b.motivo}</div>
-          <div class="medico-tag">${b.fecha} · ${b.medicoNombre}</div>
-        </div>
-        <button class="cita-btn btn-danger">Liberar</button>`;
-      d.querySelector('.btn-danger').addEventListener('click', () => eliminarBloqueo(b._docId));
-      c.appendChild(d);
+      if (!byDate[b.fecha]) byDate[b.fecha] = [];
+      byDate[b.fecha].push(b);
     });
+
+    Object.keys(byDate).sort().forEach(fecha => {
+      // ── Date header ──
+      const fechaLabel = new Date(fecha + 'T12:00:00')
+        .toLocaleDateString('es-GT', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+      const header = document.createElement('div');
+      header.style.cssText = `
+        font-family: 'Playfair Display', serif;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--navy);
+        padding: 12px 4px 6px;
+        border-bottom: 2px solid var(--navy);
+        margin-bottom: 8px;
+        text-transform: capitalize;
+        letter-spacing: 0.01em;
+      `;
+      header.textContent = fechaLabel;
+      c.appendChild(header);
+
+      // ── Slots for this date ──
+      byDate[fecha].forEach(b => {
+        const tipoDot = b.tipo==='directo' ? 'dot-directo' : b.tipo==='estrategia' ? 'dot-estrategia' : 'dot-libre';
+        const tipoLabel = b.tipo==='directo' ? 'Paciente directo' : b.tipo==='estrategia' ? 'Estrategia' : 'Administrativo';
+        const row = document.createElement('div');
+        row.className = 'admin-block-card';
+        row.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;flex:1">
+            <div class="slot-dot ${tipoDot}"></div>
+            <div>
+              <div class="admin-block-info">
+                <div class="hora">${formatTime(b.hora)}</div>
+              </div>
+              <div class="tipo">${tipoLabel}${b.motivo ? ' · ' + b.motivo : ''}</div>
+              <div class="medico-tag">${b.medicoNombre}</div>
+            </div>
+          </div>
+          <button class="cita-btn btn-danger">Liberar</button>`;
+        row.querySelector('.btn-danger').addEventListener('click', () => eliminarBloqueo(b._docId));
+        c.appendChild(row);
+      });
+
+      // Spacer between dates
+      const spacer = document.createElement('div');
+      spacer.style.height = '14px';
+      c.appendChild(spacer);
+    });
+
   } catch(e) { c.innerHTML='<p style="color:var(--text-muted)">Error cargando bloqueos</p>'; }
 }
 
@@ -2941,6 +3020,145 @@ window.addEventListener('appinstalled', () => {
   _deferredPrompt = null;
 });
 
+// ── DURATION EDITOR ────────────────────────────────────
+// Store durations per slot: { 'FECHA_HORA_MEDICOID': minutes }
+window._durOverrides = {};
+
+async function loadDurEditor() {
+  const editor = document.getElementById('durEditor');
+  const actions = document.getElementById('durActions');
+  const cascadeInfo = document.getElementById('durCascadeInfo');
+  if (!editor) return;
+
+  const fecha = document.getElementById('durFecha').value;
+  const medicoId = document.getElementById('durMedico').value;
+  if (!fecha || !medicoId) return;
+
+  editor.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando...</div>';
+  actions.style.display = 'none';
+  cascadeInfo.style.display = 'none';
+
+  const d = new Date(fecha + 'T12:00:00');
+  const dow = d.getDay();
+  const allSlots = HORARIOS[medicoId] ? HORARIOS[medicoId].slots(dow) : [];
+
+  if (allSlots.length === 0) {
+    editor.innerHTML = '<p style="color:var(--text-muted);font-size:14px;padding:16px 0">No hay horario para este día</p>';
+    return;
+  }
+
+  // Load citas for this day
+  const citasMap = {};
+  try {
+    const q = query(window._col, where('fecha','==',fecha), where('medicoId','==',medicoId));
+    const snap = await getDocs(q);
+    snap.forEach(doc => {
+      if (doc.data().estado !== 'cancelada') citasMap[doc.data().hora] = {...doc.data(), _docId: doc.id};
+    });
+  } catch(e) {}
+
+  // Calculate effective times based on durations
+  window._durSlots = []; // {originalSlot, effectiveHora, cita, durMin}
+  let currentMins = timeToMins(allSlots[0]);
+
+  allSlots.forEach((slot, idx) => {
+    const key = `${fecha}_${slot}_${medicoId}`;
+    const durMin = window._durOverrides[key] || 45;
+    const cita = citasMap[slot] || null;
+    const effectiveHora = minsToTime(currentMins);
+    window._durSlots.push({ originalSlot: slot, effectiveHora, cita, durMin, key });
+    currentMins += durMin;
+  });
+
+  renderDurEditor();
+  actions.style.display = 'block';
+}
+
+function timeToMins(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+function minsToTime(mins) {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+function renderDurEditor() {
+  const editor = document.getElementById('durEditor');
+  editor.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'duration-editor';
+
+  window._durSlots.forEach((s, idx) => {
+    const row = document.createElement('div');
+    row.className = 'dur-row ' + (s.cita ? 'has-cita' : 'is-libre');
+
+    const badge = s.cita
+      ? `<span class="dur-badge ${s.cita.estado==='confirmada'?'badge-conf':'badge-pend'}">${s.cita.estado==='confirmada'?'✅':'⏳'}</span>`
+      : `<span class="dur-badge badge-libre">libre</span>`;
+
+    const info = s.cita
+      ? `<div class="dur-paciente">${s.cita.nombre}</div>
+         <div class="dur-especialidad">${s.cita.especialidad}</div>`
+      : `<div class="dur-libre-label">Sin cita agendada</div>`;
+
+    row.innerHTML = `
+      <div class="dur-hora">${formatTime(s.effectiveHora)}</div>
+      <div class="dur-info">${info}</div>
+      ${badge}
+      <select class="dur-select" data-idx="${idx}">
+        <option value="30" ${s.durMin===30?'selected':''}>30 min</option>
+        <option value="45" ${s.durMin===45?'selected':''}>45 min</option>
+        <option value="60" ${s.durMin===60?'selected':''}>60 min</option>
+      </select>`;
+
+    row.querySelector('.dur-select').addEventListener('change', (e) => {
+      const newDur = parseInt(e.target.value);
+      window._durSlots[idx].durMin = newDur;
+      window._durOverrides[s.key] = newDur;
+      // Recascade from this slot
+      let currentMins = timeToMins(window._durSlots[0].effectiveHora);
+      window._durSlots.forEach((sl, i) => {
+        if (i > 0) {
+          currentMins += window._durSlots[i-1].durMin;
+        }
+        window._durSlots[i].effectiveHora = minsToTime(currentMins);
+      });
+      renderDurEditor();
+      // Show cascade info
+      const ci = document.getElementById('durCascadeInfo');
+      ci.style.display = 'block';
+      setTimeout(() => { ci.style.display = 'none'; }, 2500);
+    });
+    wrap.appendChild(row);
+  });
+  editor.appendChild(wrap);
+}
+
+async function guardarDuraciones() {
+  const fecha = document.getElementById('durFecha').value;
+  const medicoId = document.getElementById('durMedico').value;
+  if (!fecha || !medicoId) return;
+
+  try {
+    // Update each cita with new hora based on effective time
+    for (const s of window._durSlots) {
+      if (s.cita && s.cita._docId && s.effectiveHora !== s.originalSlot) {
+        await updateDoc(doc(window._db, 'citas', s.cita._docId), { hora: s.effectiveHora });
+      }
+    }
+    const ci = document.getElementById('durCascadeInfo');
+    ci.textContent = '✅ Horarios guardados correctamente';
+    ci.style.display = 'block';
+    setTimeout(() => {
+      ci.textContent = '✅ Horarios recalculados automáticamente';
+      ci.style.display = 'none';
+    }, 3000);
+    loadAgenda();
+  } catch(e) { alert('Error al guardar cambios'); }
+}
+
 // ── CLEANUP OLD RECORDS ────────────────────────────────
 async function cleanupOldRecords() {
   try {
@@ -3087,6 +3305,14 @@ function initAllListeners() {
     });
   });
 
+  // Cargar dur editor
+  const bcd = document.getElementById('btnCargarDuraciones');
+  if (bcd) bcd.addEventListener('click', () => loadDurEditor());
+
+  // Guardar duraciones
+  const bgd = document.getElementById('btnGuardarDuraciones');
+  if (bgd) bgd.addEventListener('click', () => guardarDuraciones());
+
   // Limpiar canceladas del día
   const blc = document.getElementById('btnLimpiarCanc');
   if (blc) blc.addEventListener('click', async () => {
@@ -3158,7 +3384,7 @@ function initAllListeners() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
       btn.classList.add('active');
-      ['tabAgenda','tabBloquear','tabEspera','tabConfig'].forEach(id => {
+      ['tabAgenda','tabDuracion','tabBloquear','tabEspera','tabConfig'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
       });
@@ -3169,6 +3395,10 @@ function initAllListeners() {
       S.currentTab = tab;
       if (tab === 'bloquear') { loadBloqueos(); loadBloqueosActivos(); }
       if (tab === 'espera') { loadEspera('todas'); }
+      if (tab === 'duracion') {
+        document.getElementById('durFecha').value = dateToStr(new Date());
+        loadDurEditor();
+      }
     });
   });
 
