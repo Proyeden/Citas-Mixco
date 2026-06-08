@@ -2187,6 +2187,22 @@ async function renderSlots() {
     }
   }
 
+  // ── BLOQUEO AUTOMÁTICO DE SLOTS PASADOS (15 min) ─────────────────────
+  const now = new Date();
+  const todayStr = dateToStr(now);
+  const isToday = dateStr === todayStr;
+  if (isToday) {
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    allSlots.forEach(slot => {
+      const slotMins = timeToMins(slot);
+      // If slot started more than 15 minutes ago and is still free → auto-block
+      if (nowMins >= slotMins + 15 && !occupied.has(slot) && !adminBlocked.has(slot)) {
+        adminBlocked.add(slot); // treat as blocked
+        publicVisible.delete(slot); // remove from visible
+      }
+    });
+  }
+
   // ── RENDER CON APARIENCIA DE AGENDA SATURADA ──────────────────────────
   grid.innerHTML = '';
 
@@ -3047,25 +3063,44 @@ async function loadDurEditor() {
     return;
   }
 
-  // Load citas for this day
+  // Load saved duration overrides from Firebase
+  let savedOverrides = {};
+  try {
+    const bq = query(window._blCol,
+      where('fecha','==',fecha),
+      where('medicoId','==',medicoId),
+      where('tipo','==','duracion'));
+    const bsnap = await getDocs(bq);
+    bsnap.forEach(bd => {
+      if (bd.data().overrides) {
+        savedOverrides = JSON.parse(bd.data().overrides);
+      }
+    });
+  } catch(e) {}
+
+  // Load citas for this day — by hora (which may have been updated)
   const citasMap = {};
   try {
     const q = query(window._col, where('fecha','==',fecha), where('medicoId','==',medicoId));
     const snap = await getDocs(q);
     snap.forEach(doc => {
-      if (doc.data().estado !== 'cancelada') citasMap[doc.data().hora] = {...doc.data(), _docId: doc.id};
+      if (doc.data().estado !== 'cancelada') {
+        citasMap[doc.data().hora] = {...doc.data(), _docId: doc.id};
+      }
     });
   } catch(e) {}
 
-  // Calculate effective times based on durations
-  window._durSlots = []; // {originalSlot, effectiveHora, cita, durMin}
+  // Build slots using saved overrides — slots are now the effective times
+  window._durSlots = [];
   let currentMins = timeToMins(allSlots[0]);
 
   allSlots.forEach((slot, idx) => {
-    const key = `${fecha}_${slot}_${medicoId}`;
-    const durMin = window._durOverrides[key] || 45;
-    const cita = citasMap[slot] || null;
     const effectiveHora = minsToTime(currentMins);
+    const key = `${fecha}_${slot}_${medicoId}`;
+    // Use saved override for this effective time, or session override, or default 45
+    const durMin = savedOverrides[effectiveHora] || window._durOverrides[key] || 45;
+    // Look up cita by effective hora (updated) or original slot
+    const cita = citasMap[effectiveHora] || citasMap[slot] || null;
     window._durSlots.push({ originalSlot: slot, effectiveHora, cita, durMin, key });
     currentMins += durMin;
   });
@@ -3142,21 +3177,49 @@ async function guardarDuraciones() {
   if (!fecha || !medicoId) return;
 
   try {
-    // Update each cita with new hora based on effective time
     for (const s of window._durSlots) {
-      if (s.cita && s.cita._docId && s.effectiveHora !== s.originalSlot) {
-        await updateDoc(doc(window._db, 'citas', s.cita._docId), { hora: s.effectiveHora });
+      if (s.cita && s.cita._docId) {
+        // Always update hora (effective time) and duracion
+        await updateDoc(doc(window._db, 'citas', s.cita._docId), {
+          hora: s.effectiveHora,
+          duracion: s.durMin
+        });
       }
     }
+
+    // Also save slot durations as a schedule override in Firestore
+    // so renderSlots can pick them up for patient view
+    const scheduleKey = `${fecha}_${medicoId}`;
+    const overrides = {};
+    window._durSlots.forEach(s => {
+      overrides[s.effectiveHora] = s.durMin;
+    });
+    // Store in bloqueos collection with tipo='duracion' for retrieval
+    // First delete existing duracion entries for this date/medico
+    const bq = query(window._blCol,
+      where('fecha','==',fecha),
+      where('medicoId','==',medicoId),
+      where('tipo','==','duracion'));
+    const bsnap = await getDocs(bq);
+    for (const bd of bsnap.docs) await deleteDoc(doc(window._db,'bloqueos',bd.id));
+    // Save new duration schedule
+    if (Object.keys(overrides).length > 0) {
+      await addDoc(window._blCol, {
+        fecha, medicoId,
+        tipo: 'duracion',
+        overrides: JSON.stringify(overrides),
+        creadoEn: new Date().toISOString()
+      });
+    }
+
     const ci = document.getElementById('durCascadeInfo');
     ci.textContent = '✅ Horarios guardados correctamente';
     ci.style.display = 'block';
-    setTimeout(() => {
-      ci.textContent = '✅ Horarios recalculados automáticamente';
-      ci.style.display = 'none';
-    }, 3000);
+    setTimeout(() => { ci.style.display = 'none'; }, 3000);
+    // Reload editor with updated data from Firebase
+    await loadDurEditor();
     loadAgenda();
-  } catch(e) { alert('Error al guardar cambios'); }
+  } catch(e) { console.error(e); alert('Error al guardar cambios: ' + e.message); }
 }
 
 // ── CLEANUP OLD RECORDS ────────────────────────────────
