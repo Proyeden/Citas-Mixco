@@ -317,7 +317,7 @@
   .cal-day.available { color: var(--navy); background: var(--cream); }
   .cal-day.available:hover { background: var(--navy); color: white; border-color: var(--navy); }
   .cal-day.selected { background: linear-gradient(135deg,#1A6B8A,#2196C4); color: white; border-color: #1A6B8A; }
-  .cal-day.today { border-color: var(--gold); }
+  .cal-day.today { border-color: #1A6B8A; border-width: 2px; font-weight: 700; background: var(--celeste-light) !important; }
   .cal-day.past, .cal-day.unavailable { color: var(--border); cursor: not-allowed; }
   .cal-day-pending {
     aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
@@ -332,6 +332,12 @@
     opacity: 0.6;
   }
   .cal-day-future:hover { border-color: var(--navy); color: var(--navy); opacity: 1; background: var(--celeste-light); }
+  .cal-day-neutral {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.15s;
+    border: 1.5px solid transparent; color: var(--text); font-weight: 500;
+  }
+  .cal-day-neutral:hover { background: var(--cream); border-color: var(--border); }
 
   /* ── TIME SLOTS ── */
   .slots-title { font-size: 14px; font-weight: 600; color: var(--navy); margin-bottom: 12px; }
@@ -899,6 +905,39 @@
   .config-row .label { color: var(--text-muted); }
   .config-row .value { font-weight: 500; }
 
+  /* ── ESPERA NOTIFICATION BANNER ── */
+  .espera-notif-banner {
+    background: linear-gradient(135deg, #1B4332, #2D6A4F);
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    animation: pulse-green 2.5s infinite;
+  }
+  .espera-notif-banner:hover { opacity: 0.92; transform: translateY(-1px); }
+  @keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(27,67,50,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(27,67,50,0); }
+  }
+  .espera-notif-icon { font-size: 24px; flex-shrink: 0; }
+  .espera-notif-text { flex: 1; }
+  .espera-notif-text strong { display: block; font-size: 14px; margin-bottom: 2px; }
+  .espera-notif-text span { font-size: 12px; opacity: 0.85; }
+  .espera-notif-count {
+    background: #FF5252;
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 100px;
+    flex-shrink: 0;
+  }
+
   /* ── REMINDER BANNER ── */
   .reminder-banner {
     background: linear-gradient(135deg, #E65100, #F57F17);
@@ -1203,6 +1242,16 @@
     <div class="personal-header">
       <h2>📋 Panel de Personal</h2>
       <button class="btn-personal" id="btnSalirPersonal" style="font-size:12px; padding:6px 12px;">Salir</button>
+    </div>
+
+    <!-- ESPERA NOTIFICATION BANNER -->
+    <div class="espera-notif-banner" id="esperaNotifBanner" style="display:none" title="Ver lista de espera">
+      <div class="espera-notif-icon">🔔</div>
+      <div class="espera-notif-text">
+        <strong>Pacientes en lista de espera</strong>
+        <span>Toca para ver y contactar</span>
+      </div>
+      <div class="espera-notif-count" id="esperaNotifCount">0</div>
     </div>
 
     <!-- REMINDER BANNER -->
@@ -1712,22 +1761,38 @@ function renderCalendar() {
     const y = S.calYear, m2 = S.calMonth;
     const date = new Date(y, m2, d);
     const isPast = date < today;
-    const avail = !isPast && isAvailableDay(y, m2, d);
-    const isToday = date.getTime()===today.getTime();
-    const isSel = S.selectedDate && S.selectedDate.getTime()===date.getTime();
+    const isToday = date.getTime() === today.getTime();
+    const isSel = S.selectedDate && S.selectedDate.getTime() === date.getTime();
+    const bookable = !isPast ? isDayBookable(y, m2, d) : 'unavailable';
 
-    let cls = 'cal-day';
-    if (isPast || !avail) cls += ' past unavailable';
-    else if (isSel) cls += ' selected';
-    else cls += ' available';
-    if (isToday && avail) cls += ' today';
-
-    // click handled via addEventListener
     const dayDiv = document.createElement('div');
-    dayDiv.className = cls;
     dayDiv.textContent = d;
-    if (avail) { dayDiv.dataset.year=y; dayDiv.dataset.month=m2; dayDiv.dataset.day=d;
-      dayDiv.addEventListener('click', () => selectDate(y, m2, d)); }
+
+    if (isPast || bookable === 'unavailable') {
+      // Pasado o día sin horario — sin clase especial, solo no clickeable
+      dayDiv.className = 'cal-day past unavailable';
+
+    } else if (bookable === 'available') {
+      // Hoy (o mañana tras fin jornada) — puede agendar
+      dayDiv.className = 'cal-day available' + (isSel ? ' selected' : '') + (isToday ? ' today' : '');
+      dayDiv.addEventListener('click', () => selectDate(y, m2, d));
+
+    } else {
+      // tomorrow_pending o future — se ve como día normal (no highlighted)
+      // Al hacer click abre modal de lista de espera
+      dayDiv.className = 'cal-day cal-day-neutral';
+      const fechaStr = `${y}-${String(m2+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dateLabel = date.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
+      dayDiv.addEventListener('click', () => {
+        document.getElementById('futuroMsg').textContent =
+          bookable === 'tomorrow_pending'
+            ? `La agenda de mañana estará disponible al finalizar la jornada de hoy. Mientras tanto puedes unirte a la lista de espera con tu horario preferido.`
+            : `La agenda para el ${dateLabel} aún no está configurada. Puedes unirte a la lista de espera y te contactaremos cuando haya disponibilidad.`;
+        document.getElementById('esperaFecha').value = fechaStr;
+        openModal('modalFuturo');
+      });
+    }
+
     grid.appendChild(dayDiv);
   }
 }
@@ -2028,6 +2093,11 @@ function initPersonalView() {
   // Re-check every 5 minutes in case bloqueos were added
   if (window._reminderInterval) clearInterval(window._reminderInterval);
   window._reminderInterval = setInterval(checkReminderBanner, 5 * 60 * 1000);
+
+  // Check espera notifications
+  checkEsperaNotif();
+  if (window._esperaInterval) clearInterval(window._esperaInterval);
+  window._esperaInterval = setInterval(checkEsperaNotif, 2 * 60 * 1000); // every 2 min
 }
 
 async function loadProximasCitas() {
@@ -2094,6 +2164,34 @@ async function loadProximasCitas() {
   } catch(e) {
     console.log('Error loading proximas citas:', e);
   }
+}
+
+async function checkEsperaNotif() {
+  const banner = document.getElementById('esperaNotifBanner');
+  const countEl = document.getElementById('esperaNotifCount');
+  if (!banner || !countEl) return;
+
+  // Only during working hours
+  const now = new Date();
+  const dow = now.getDay(); // 0=dom
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const inHours =
+    (dow >= 1 && dow <= 4 && mins >= 13*60 && mins <= 17*60) ||  // lun-jue 1pm-5pm
+    (dow === 5 && mins >= 9*60 && mins <= 15*60) ||               // vie 9am-3pm
+    (dow === 6 && mins >= 8*60 && mins <= 14*60);                 // sab 8am-2pm
+
+  if (!inHours) { banner.style.display = 'none'; return; }
+
+  try {
+    const snap = await getDocs(window._espCol);
+    const count = snap.size;
+    if (count > 0) {
+      countEl.textContent = count;
+      banner.style.display = 'flex';
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch(e) { banner.style.display = 'none'; }
 }
 
 async function checkReminderBanner() {
@@ -2614,6 +2712,21 @@ function initAllListeners() {
   // Back to step1 from step2
   const bb1 = document.getElementById('btnBackToStep1');
   if (bb1) bb1.addEventListener('click', () => goStep(1));
+
+  // Espera notification banner — click goes to lista de espera tab
+  const enb = document.getElementById('esperaNotifBanner');
+  if (enb) enb.addEventListener('click', () => {
+    // Switch to espera tab
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-tab')[2].classList.add('active');
+    ['tabAgenda','tabBloquear','tabEspera','tabConfig'].forEach(id => {
+      document.getElementById(id).style.display = 'none';
+    });
+    document.getElementById('tabEspera').style.display = 'block';
+    loadEspera('todas');
+    // Hide banner after viewing
+    document.getElementById('esperaNotifBanner').style.display = 'none';
+  });
 
   // Futuro modal → espera
   const beff = document.getElementById('btnEsperaFromFuturo');
