@@ -545,8 +545,35 @@
     transition: all 0.2s;
   }
   .cita-card.confirmada { border-left-color: var(--sage); }
-  .cita-card.pendiente { border-left-color: var(--gold); }
+  .cita-card.pendiente { border-left-color: #2196C4; }
   .cita-card.cancelada { border-left-color: var(--rose); opacity: 0.6; }
+  /* Admin slot view */
+  .slot-admin-row {
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .slot-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-web { background: #2196C4; }       /* cita web */
+  .dot-directo { background: #F57F17; }   /* paciente directo */
+  .dot-estrategia { background: #9E9E9E; }/* bloqueado por estrategia */
+  .dot-libre { background: #C8DDD4; }     /* libre real */
+  .slot-admin-hora { font-family:'Playfair Display',serif; font-size:16px; color:var(--navy); min-width:60px; }
+  .slot-admin-label { font-size:13px; color:var(--text-muted); flex:1; }
+  .slot-admin-badge { font-size:11px; font-weight:600; padding:2px 8px; border-radius:100px; }
+  .badge-web { background:#E3F2FD; color:#1565C0; }
+  .badge-directo { background:#FFF3E0; color:#E65100; }
+  .badge-estrategia { background:#F5F5F5; color:#757575; }
+  .badge-libre { background:#E8F5E9; color:#2E7D32; }
 
   .cita-top {
     display: flex;
@@ -690,6 +717,73 @@
   .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
   .empty-state p { font-size: 15px; }
 
+  /* ── LISTA DE ESPERA ── */
+  .espera-banner {
+    background: var(--warm-white);
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    text-align: center;
+    margin-top: 8px;
+  }
+  .espera-banner .espera-icon { font-size: 36px; margin-bottom: 12px; }
+  .espera-banner h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+  .espera-banner p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .btn-espera {
+    background: linear-gradient(135deg, #1A6B8A, #2196C4);
+    color: white;
+    border: none;
+    padding: 13px 28px;
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+  }
+  .btn-espera:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  /* Modal espera form */
+  .espera-card {
+    background: var(--warm-white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .espera-info .espera-nombre { font-weight: 600; font-size: 15px; color: var(--navy); }
+  .espera-info .espera-sub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .espera-info .espera-fecha { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .btn-wa {
+    background: #25D366;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: 'DM Sans', sans-serif;
+    flex-shrink: 0;
+  }
+  .btn-wa:hover { background: #128C7E; }
+
   /* ── LOADING ── */
   .loading {
     display: flex;
@@ -731,6 +825,40 @@
   .config-row:last-child { border-bottom: none; }
   .config-row .label { color: var(--text-muted); }
   .config-row .value { font-weight: 500; }
+
+  /* ── REMINDER BANNER ── */
+  .reminder-banner {
+    background: linear-gradient(135deg, #E65100, #F57F17);
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    animation: pulse-border 2s infinite;
+  }
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(230,81,0,0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(230,81,0,0); }
+  }
+  .reminder-icon { font-size: 28px; flex-shrink: 0; }
+  .reminder-text { flex: 1; }
+  .reminder-text strong { display: block; font-size: 15px; margin-bottom: 3px; }
+  .reminder-text span { font-size: 13px; opacity: 0.9; }
+  .reminder-dismiss {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.4);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .reminder-dismiss:hover { background: rgba(255,255,255,0.35); }
 
   .nav-tabs {
     display: flex;
@@ -890,14 +1018,6 @@
         <h2 id="step3Title">Elige tu fecha y hora</h2>
         <p class="subtitle" id="step3Sub">Selecciona el día y horario disponible</p>
 
-        <!-- Precio info (determinado por primera visita) -->
-        <div class="price-info" id="priceInfo" style="display:none">
-          <div>
-            <div class="price-label" id="priceLabel">Precio de consulta</div>
-          </div>
-          <div class="price-value" id="priceDisplay">Q0</div>
-        </div>
-
         <!-- Calendario -->
         <div class="calendar-header">
           <button class="cal-nav" id="calPrevBtn">←</button>
@@ -910,6 +1030,14 @@
         <div id="slotsSection" style="display:none">
           <div class="slots-title" id="slotsTitle">Horarios disponibles</div>
           <div class="slots-grid" id="slotsGrid"></div>
+        </div>
+
+        <!-- Lista de espera CTA -->
+        <div class="espera-banner" id="esperaBannerCTA" style="display:none">
+          <div class="espera-icon">🔔</div>
+          <h3>¿No encontraste un horario?</h3>
+          <p>Únete a la lista de espera y te avisaremos en cuanto haya un espacio disponible.</p>
+          <button class="btn-espera" id="btnUnirseEspera">Unirme a la lista de espera</button>
         </div>
 
         <div style="display:flex; gap:10px; margin-top:16px">
@@ -926,20 +1054,24 @@
         <p class="subtitle">Para confirmar tu cita necesitamos tu información</p>
 
         <div class="form-group">
-          <label>Nombre *</label>
-          <input type="text" id="fNombre" placeholder="Tu nombre" />
+          <label>Nombre completo *</label>
+          <input type="text" id="fNombre" placeholder="Nombre y apellidos" />
         </div>
         <div class="form-group">
-          <label>Apellido *</label>
-          <input type="text" id="fApellido" placeholder="Tu apellido" />
+          <label>Fecha de nacimiento *</label>
+          <input type="date" id="fFechaNac" />
         </div>
         <div class="form-group">
           <label>Teléfono *</label>
           <input type="tel" id="fTel" placeholder="0000-0000" />
         </div>
         <div class="form-group">
-          <label>Motivo de consulta</label>
-          <textarea id="fMotivo" placeholder="Describe brevemente por qué necesitas la cita (opcional)"></textarea>
+          <label>Correo electrónico <span style="font-weight:400; color:var(--text-muted)">(opcional)</span></label>
+          <input type="email" id="fCorreo" placeholder="tucorreo@ejemplo.com" />
+        </div>
+        <div class="form-group" id="grupoPadre" style="display:none">
+          <label>Nombre del padre o madre *</label>
+          <input type="text" id="fPadre" placeholder="Nombre completo del responsable" />
         </div>
         <div style="display:flex; gap:10px;">
           <button class="btn-secondary" data-gostep="3">← Atrás</button>
@@ -955,6 +1087,7 @@
         <div class="confirm-id" id="confirmId"></div>
         <p>¡Tu cita ha sido registrada!</p>
         <p>Llega 10 minutos antes de tu cita</p>
+        <p style="font-size:12px; opacity:0.7; margin-top:6px">📲 Notificación enviada al equipo</p>
         <div class="confirm-detail" id="confirmDetail"></div>
       </div>
       <div class="card" style="text-align:center">
@@ -991,10 +1124,21 @@
       <button class="btn-personal" id="btnSalirPersonal" style="font-size:12px; padding:6px 12px;">Salir</button>
     </div>
 
+    <!-- REMINDER BANNER -->
+    <div class="reminder-banner" id="reminderBanner" style="display:none">
+      <div class="reminder-icon">⏰</div>
+      <div class="reminder-text">
+        <strong>¡Configura la agenda de mañana!</strong>
+        <span>Revisa los bloqueos del día siguiente antes de cerrar.</span>
+      </div>
+      <button class="reminder-dismiss" id="reminderDismiss">Configurar ahora →</button>
+    </div>
+
     <!-- TABS -->
     <div class="nav-tabs">
       <button class="nav-tab active" data-tab="agenda">Agenda del día</button>
       <button class="nav-tab" data-tab="bloquear">Bloquear slots</button>
+      <button class="nav-tab" data-tab="espera">Lista de espera</button>
       <button class="nav-tab" data-tab="config">Configuración</button>
     </div>
 
@@ -1042,8 +1186,16 @@
           <input type="date" id="blockFecha" />
         </div>
         <div class="form-group">
-          <label>Motivo</label>
-          <input type="text" id="blockMotivo" placeholder="ej. Reunión, reservado, etc." />
+          <label>Tipo de bloqueo</label>
+          <select id="blockTipo">
+            <option value="directo">🟡 Paciente directo (presencial/telefónico)</option>
+            <option value="estrategia">⚫ Estrategia (invisible al público)</option>
+            <option value="admin">🔒 Administrativo (reunión, descanso, etc.)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Nota interna <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+          <input type="text" id="blockMotivo" placeholder="ej. Nombre del paciente, motivo..." />
         </div>
         <div id="blockSlots" style="margin-bottom:16px"></div>
         <button class="btn-primary" id="btnGuardarBloqueo">Guardar bloqueo</button>
@@ -1055,8 +1207,35 @@
       </div>
     </div>
 
+    <!-- TAB: LISTA DE ESPERA -->
+    <div id="tabEspera" style="display:none">
+      <div class="card">
+        <h2>Lista de espera</h2>
+        <p class="subtitle">Pacientes esperando un espacio disponible</p>
+        <div class="filter-tabs" id="esperaFilterTabs">
+          <div class="filter-tab active" data-espfilter="todas">Todas</div>
+          <div class="filter-tab" data-espfilter="medicina-interna">Medicina Interna</div>
+          <div class="filter-tab" data-espfilter="diabetes">Diabetes</div>
+          <div class="filter-tab" data-espfilter="pediatria">Pediatría</div>
+          <div class="filter-tab" data-espfilter="neonatologia">Neonatología</div>
+          <div class="filter-tab" data-espfilter="psicologia">Psicología</div>
+        </div>
+        <div id="esperaList"></div>
+      </div>
+    </div>
+
     <!-- TAB: CONFIG -->
     <div id="tabConfig" style="display:none">
+      <div class="card" style="margin-bottom:16px">
+        <h2>Leyenda de agenda</h2>
+        <p class="subtitle">Cómo se ven los slots en el panel del personal</p>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px">
+          <div style="display:flex;align-items:center;gap:10px"><div class="slot-dot dot-web"></div><span style="font-size:14px"><strong>Cita web</strong> — paciente agendó en línea</span></div>
+          <div style="display:flex;align-items:center;gap:10px"><div class="slot-dot dot-directo"></div><span style="font-size:14px"><strong>Paciente directo</strong> — agendado administrativamente</span></div>
+          <div style="display:flex;align-items:center;gap:10px"><div class="slot-dot dot-estrategia"></div><span style="font-size:14px"><strong>Estrategia</strong> — invisible al público (agenda saturada)</span></div>
+          <div style="display:flex;align-items:center;gap:10px"><div class="slot-dot dot-libre"></div><span style="font-size:14px"><strong>Disponible</strong> — visible al público (máx. 2)</span></div>
+        </div>
+      </div>
       <div class="card">
         <h2>Configuración del sistema</h2>
         <div class="config-section">
@@ -1119,6 +1298,30 @@
   </div>
 </div>
 
+<!-- MODAL: LISTA DE ESPERA -->
+<div class="modal-overlay" id="modalEspera">
+  <div class="modal">
+    <h3>🔔 Lista de espera</h3>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Te contactaremos cuando haya disponibilidad para <strong id="esperaEspLabel"></strong>.</p>
+    <div class="form-group">
+      <label>Nombre completo *</label>
+      <input type="text" id="esperaNombre" placeholder="Tu nombre completo" />
+    </div>
+    <div class="form-group">
+      <label>Teléfono *</label>
+      <input type="tel" id="esperaTel" placeholder="0000-0000" />
+    </div>
+    <div class="form-group">
+      <label>¿Qué fecha te conviene más?</label>
+      <input type="date" id="esperaFecha" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" data-closemodal="modalEspera">Cancelar</button>
+      <button class="btn-primary" id="btnGuardarEspera">Registrarme →</button>
+    </div>
+  </div>
+</div>
+
 <!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -1139,6 +1342,7 @@ const db = getFirestore(app);
 window._db = db;
 window._col = collection(db, 'citas');
 window._blCol = collection(db, 'bloqueos');
+window._espCol = collection(db, 'lista_espera');
 window._fbReady = true;
 
 // ── DATA ──────────────────────────────────────────────
@@ -1297,6 +1501,13 @@ window.goStep = (n) => {
     const el = document.getElementById(`step${i}`);
     if (el) el.style.display = i===n ? 'block' : 'none';
   }
+  // Show padre/madre field only for pediatria and neonatologia
+  if (n === 4) {
+    const needsPadre = S.especialidad === 'pediatria' || S.especialidad === 'neonatologia';
+    const grupoPadre = document.getElementById('grupoPadre');
+    if (grupoPadre) grupoPadre.style.display = needsPadre ? 'block' : 'none';
+    if (!needsPadre) { const fp = document.getElementById('fPadre'); if(fp) fp.value = ''; }
+  }
   updateSteps(n);
   window.scrollTo(0,0);
 };
@@ -1310,7 +1521,7 @@ window.selectSpecialty = (esp, el) => {
 
   // Price will be determined at step2 (primera visita question)
   document.getElementById('step3Title').textContent = NOMBRES_ESP[esp];
-  document.getElementById('priceInfo').style.display = 'none';
+  // price determined internally, shown only at confirmation
 
   setTimeout(()=>goStep(2), 200); // goes to primera visita step
 };
@@ -1325,14 +1536,7 @@ window.selectPrimeraVisita = (esPrimera) => {
     S.tipo = esPrimera ? 'primera' : 'subsecuente';
     S.precio = esPrimera ? p.primera : p.subsecuente;
   }
-  // Show price in step3
-  const priceInfo = document.getElementById('priceInfo');
-  const priceDisplay = document.getElementById('priceDisplay');
-  const priceLabel = document.getElementById('priceLabel');
-  priceInfo.style.display = 'flex';
-  priceDisplay.textContent = `Q${S.precio}`;
-  if (priceLabel) priceLabel.textContent = esPrimera ? 'Primera consulta' : 'Consulta subsecuente';
-  // Init calendar and go to step3
+  // Price shown only at confirmation — not here
   const now = new Date();
   S.calYear = now.getFullYear(); S.calMonth = now.getMonth();
   renderCalendar();
@@ -1347,12 +1551,12 @@ function getMedicoId() {
 function isAvailableDay(year, month, day) {
   const d = new Date(year, month, day);
   const dow = d.getDay(); // 0=dom
+  // Domingo siempre bloqueado
+  if (dow === 0) return false;
   const mid = getMedicoId();
   if (!mid) return false;
   const h = HORARIOS[mid];
-  // Convert JS day (0=dom) to our system (1=lun..6=sab, 0=dom)
-  const ourDow = dow === 0 ? 0 : dow;
-  return h.diasSemana.includes(ourDow);
+  return h.diasSemana.includes(dow);
 }
 
 function renderCalendar() {
@@ -1422,13 +1626,11 @@ async function renderSlots() {
   const ourDow = dow === 0 ? 0 : dow;
   const allSlots = h.slots(ourDow);
 
-  // Get occupied slots from Firebase
   const dateStr = dateToStr(S.selectedDate);
-  const occupied = new Set();
-  const adminBlocked = new Set();
+  const occupied = new Set();     // citas reales (web)
+  const adminBlocked = new Set(); // bloqueos admin (directo/estrategia)
 
   try {
-    // Citas ocupadas
     const q = query(window._col,
       where('fecha','==',dateStr),
       where('medicoId','==',mid),
@@ -1436,49 +1638,63 @@ async function renderSlots() {
     const snap = await getDocs(q);
     snap.forEach(d => occupied.add(d.data().hora));
 
-    // Bloqueos admin
     const bq = query(window._blCol,
       where('fecha','==',dateStr),
       where('medicoId','==',mid));
     const bsnap = await getDocs(bq);
-    bsnap.forEach(d => adminBlocked.add(d.data().hora));
-  } catch(e) { console.log('Firebase error, using local', e); }
-
-  // Determine which slots patients can see/book
-  // First N free slots are the "open" ones; rest are blocked unless admin opened them
-  const freeCount = h.slotsLibres || 2;
-
-  grid.innerHTML = '';
-  allSlots.forEach((slot, idx) => {
-    const isOccupied = occupied.has(slot);
-    const isAdmin = adminBlocked.has(slot);
-    const isFreeSlot = idx < freeCount; // first 2 slots = open to patients
-
-    let cls = 'slot';
-    let disabled = false;
-    let label = formatTime(slot);
-
-    if (isOccupied) {
-      cls += ' occupied'; disabled = true;
-    } else if (isAdmin) {
-      cls += ' admin-reserved'; disabled = true; label = '🔒 Reservado';
-    } else if (!isFreeSlot && !isOccupied && !isAdmin) {
-      // Beyond free slots — only show as available if the free slots above it are all occupied
-      // Count how many of the first freeCount slots are still open
-      let freeOpen = 0;
-      for (let i=0;i<freeCount && i<allSlots.length;i++) {
-        if (!occupied.has(allSlots[i]) && !adminBlocked.has(allSlots[i])) freeOpen++;
+    bsnap.forEach(d => {
+      const tipo = d.data().tipo || 'admin';
+      if (tipo === 'directo') {
+        // Paciente directo = ancla real, se comporta igual que cita web
+        occupied.add(d.data().hora);
+      } else {
+        // Estrategia / administrativo = invisible, no ancla
+        adminBlocked.add(d.data().hora);
       }
-      if (freeOpen > 0) {
-        cls += ' admin-reserved'; disabled = true; label = '🔒 No disponible';
-      }
+    });
+  } catch(e) { console.log('Firebase error', e); }
+
+  // ── LÓGICA DE VISIBILIDAD PÚBLICA ─────────────────────────────────────
+  // Regla simple: siempre mostrar los 2 slots más tempranos del día
+  // que estén libres (no ocupados por cita real ni bloqueados admin).
+  // Los pacientes reales "anclan" la agenda liberando el slot siguiente
+  // al último ocupado, si aún no hay 2 slots visibles antes de él.
+  //
+  // Ejemplo:
+  //   Libre: 1:00, 1:45, 2:30 → muestra 1:00 y 1:45
+  //   Paciente real en 1:45, libre 1:00 y 2:30 → muestra 1:00 y 2:30
+  //   Paciente real en 3:15, libre 1:00 y 1:45 → muestra 1:00 y 1:45
+  //   Todo libre hasta 4:00 → muestra 1:00 y 1:45 (los más tempranos)
+
+  const publicVisible = new Set();
+
+  // Recorrer todos los slots en orden cronológico
+  // Un slot es "elegible" si: no está ocupado (cita real) y no está admin-bloqueado
+  // Tomamos simplemente los primeros 2 elegibles
+  for (let i = 0; i < allSlots.length && publicVisible.size < 2; i++) {
+    const slot = allSlots[i];
+    if (!occupied.has(slot) && !adminBlocked.has(slot)) {
+      publicVisible.add(slot);
     }
+  }
 
+  // ── RENDER ────────────────────────────────────────────────────────────
+  grid.innerHTML = '';
+
+  if (publicVisible.size === 0) {
+    grid.innerHTML = '<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:8px">No hay disponibilidad para este día.</p>';
+    const title = S.selectedDate.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
+    document.getElementById('slotsTitle').textContent = `Horarios — ${title}`;
+    return;
+  }
+
+  // Mostrar en orden cronológico
+  allSlots.filter(s => publicVisible.has(s)).forEach(slot => {
     const div = document.createElement('div');
-    div.className = cls;
-    div.textContent = label;
-    if (!disabled) div.addEventListener('click', () => {
-      document.querySelectorAll('.slot').forEach(s=>s.classList.remove('selected'));
+    div.className = 'slot';
+    div.textContent = formatTime(slot);
+    div.addEventListener('click', () => {
+      document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
       div.classList.add('selected');
       S.selectedSlot = slot;
       document.getElementById('btnStep3').disabled = false;
@@ -1488,6 +1704,8 @@ async function renderSlots() {
 
   const title = S.selectedDate.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
   document.getElementById('slotsTitle').textContent = `Horarios — ${title}`;
+  // Show espera banner if no slots available
+  checkEsperaBanner();
 }
 
 function dateToStr(d) {
@@ -1503,18 +1721,21 @@ function formatTime(t) {
 // ── STEP 3: CONFIRMAR ──────────────────────────────────
 window.confirmarCita = async () => {
   const nombre = document.getElementById('fNombre').value.trim();
-  const apellido = document.getElementById('fApellido').value.trim();
+  const fechaNac = document.getElementById('fFechaNac').value;
   const tel = document.getElementById('fTel').value.trim();
-  if (!nombre||!apellido||!tel) { alert('Por favor llena los campos requeridos'); return; }
+  const correo = document.getElementById('fCorreo').value.trim();
+  const needsPadre = S.especialidad === 'pediatria' || S.especialidad === 'neonatologia';
+  const padre = needsPadre ? document.getElementById('fPadre').value.trim() : '';
+  if (!nombre || !fechaNac || !tel) { alert('Por favor llena los campos requeridos: nombre, fecha de nacimiento y teléfono'); return; }
+  if (needsPadre && !padre) { alert('Por favor ingresa el nombre del padre o madre'); return; }
 
   const mid = getMedicoId();
   const medico = MEDICOS[S.especialidad];
   const id = 'C' + Date.now().toString().slice(-6);
   const cita = {
-    id, nombre, apellido, tel,
-    motivo: document.getElementById('fMotivo').value.trim(),
+    id, nombre, fechaNac, tel, correo, padre,
     especialidad: NOMBRES_ESP[S.especialidad],
-    tipo: S.tipo === 'primera' ? 'Primera vez' : S.tipo === 'subsecuente' ? 'Subsecuente' : 'Consulta',
+    tipo: S.tipo === 'primera' ? 'Primera consulta' : S.tipo === 'subsecuente' ? 'Consulta subsecuente' : 'Consulta',
     precio: S.precio,
     fecha: dateToStr(S.selectedDate),
     hora: S.selectedSlot,
@@ -1534,16 +1755,36 @@ window.confirmarCita = async () => {
     local.push(cita); localStorage.setItem('citas_local', JSON.stringify(local));
   }
 
+  // WhatsApp notification to clinic
+  const fechaStr = S.selectedDate.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const horaStr = formatTime(S.selectedSlot);
+  const padreStr = cita.padre ? `\n👤 Responsable: ${cita.padre}` : '';
+  const correoStr = cita.correo ? `\n📧 ${cita.correo}` : '';
+  const waMsg = encodeURIComponent(
+    `🏥 *Nueva cita agendada*\n\n` +
+    `📋 *#${id}*\n` +
+    `👤 Paciente: ${nombre}${padreStr}\n` +
+    `🩺 Especialidad: ${NOMBRES_ESP[S.especialidad]}\n` +
+    `📅 Fecha: ${fechaStr}\n` +
+    `🕐 Hora: ${horaStr}\n` +
+    `📞 Teléfono: ${tel}${correoStr}\n` +
+    `💳 Valor: Q${S.precio}`
+  );
+  // Open WhatsApp after short delay so confirmation screen shows first
+  setTimeout(() => {
+    window.open(`https://wa.me/50242146520?text=${waMsg}`, '_blank');
+  }, 800);
+
   // Show confirmation
   document.getElementById('confirmId').textContent = `Cita #${id}`;
   document.getElementById('confirmDetail').innerHTML = `
+    <div class="confirm-detail-row"><span class="label">Paciente</span><span class="value">${nombre}</span></div>
+    ${padre ? `<div class="confirm-detail-row"><span class="label">Padre / Madre</span><span class="value">${padre}</span></div>` : ''}
     <div class="confirm-detail-row"><span class="label">Especialidad</span><span class="value">${NOMBRES_ESP[S.especialidad]}</span></div>
-    <div class="confirm-detail-row"><span class="label">Tipo</span><span class="value">${cita.tipo}</span></div>
     <div class="confirm-detail-row"><span class="label">Fecha</span><span class="value">${S.selectedDate.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}</span></div>
     <div class="confirm-detail-row"><span class="label">Hora</span><span class="value">${formatTime(S.selectedSlot)}</span></div>
     <div class="confirm-detail-row"><span class="label">Médico</span><span class="value">${medico.nombre}</span></div>
-    <div class="confirm-detail-row"><span class="label">Precio</span><span class="value">Q${S.precio}</span></div>
-    <div class="confirm-detail-row"><span class="label">Paciente</span><span class="value">${nombre} ${apellido}</span></div>
+    <div class="confirm-detail-row" style="border-top: 1px solid rgba(255,255,255,0.3); margin-top:4px; padding-top:10px"><span class="label" style="font-size:15px">💳 Valor a cancelar</span><span class="value" style="font-size:20px; color:#95D5B2">Q${S.precio}</span></div>
   `;
   goStep(5);
 };
@@ -1552,9 +1793,11 @@ window.resetPatient = () => {
   S.especialidad=null;S.tipo=null;S.precio=0;S.selectedDate=null;S.selectedSlot=null;
   document.querySelectorAll('.primera-card').forEach(c=>c.classList.remove('selected'));
   document.getElementById('fNombre').value='';
-  document.getElementById('fApellido').value='';
+  document.getElementById('fFechaNac').value='';
   document.getElementById('fTel').value='';
-  document.getElementById('fMotivo').value='';
+  document.getElementById('fCorreo').value='';
+  const fp = document.getElementById('fPadre'); if(fp) fp.value='';
+  const gp = document.getElementById('grupoPadre'); if(gp) gp.style.display='none';
   document.querySelectorAll('.specialty-card').forEach(c=>c.classList.remove('selected'));
   document.querySelectorAll('.specialty-card').forEach(c=>c.classList.remove('selected'));
   goStep(1);
@@ -1570,6 +1813,50 @@ function initPersonalView() {
   document.getElementById('blockFecha').value = dateToStr(new Date());
   loadBloqueos();
   loadBloqueosActivos();
+  checkReminderBanner();
+  // Re-check every 5 minutes in case bloqueos were added
+  if (window._reminderInterval) clearInterval(window._reminderInterval);
+  window._reminderInterval = setInterval(checkReminderBanner, 5 * 60 * 1000);
+}
+
+async function checkReminderBanner() {
+  const now = new Date();
+  const dow = now.getDay(); // 0=dom,1=lun...6=sab
+  const hour = now.getHours();
+  const min = now.getMinutes();
+  const totalMin = hour * 60 + min;
+
+  // Lun-Jue (1-4): recordatorio a partir de las 4:00pm
+  const lunesJueves = dow >= 1 && dow <= 4 && totalMin >= 16 * 60;
+  // Viernes (5) y Sábado (6): recordatorio a partir de las 12:00pm
+  const viernesSabado = (dow === 5 || dow === 6) && totalMin >= 12 * 60;
+
+  if (!lunesJueves && !viernesSabado) {
+    document.getElementById('reminderBanner').style.display = 'none';
+    return;
+  }
+
+  // Calcular fecha de mañana (saltando domingo)
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (tomorrow.getDay() === 0) tomorrow.setDate(tomorrow.getDate() + 1); // skip sunday
+  const tomorrowStr = dateToStr(tomorrow);
+
+  // Verificar si ya hay bloqueos configurados para mañana en Firebase
+  try {
+    const bsnap = await getDocs(query(window._blCol, where('fecha','==',tomorrowStr)));
+    const hasBloqueos = !bsnap.empty;
+    if (hasBloqueos) {
+      document.getElementById('reminderBanner').style.display = 'none';
+      return;
+    }
+  } catch(e) { console.log('Error checking bloqueos', e); }
+
+  // No hay bloqueos para mañana — mostrar banner
+  const tomorrowFmt = tomorrow.toLocaleDateString('es-GT',{weekday:'long', day:'numeric', month:'long'});
+  document.querySelector('#reminderBanner .reminder-text span').textContent =
+    `Configura los bloqueos del ${tomorrowFmt} antes de cerrar.`;
+  document.getElementById('reminderBanner').style.display = 'flex';
 }
 
 window.switchTab = (tab) => {
@@ -1636,6 +1923,23 @@ async function loadAgenda() {
     return;
   }
 
+  // Also load bloqueos for this day to show full picture
+  const bloqueosDelDia = new Map(); // hora -> motivo
+  try {
+    const medicosFiltro = S.filterMedico === 'todos'
+      ? ['denis','nochez','pamela']
+      : [getMedicoIdByNombre(S.filterMedico)];
+    for (const mid of medicosFiltro) {
+      const bq = query(window._blCol, where('fecha','==',dateStr), where('medicoId','==',mid));
+      const bsnap = await getDocs(bq);
+      bsnap.forEach(d => bloqueosDelDia.set(d.data().hora, {motivo: d.data().motivo, medicoNombre: d.data().medicoNombre, docId: d.id}));
+    }
+  } catch(e) {}
+
+  // Build full slot picture for selected medico(s)
+  const citasMap = new Map();
+  citas.forEach(c => citasMap.set(c.hora, c));
+
   list.innerHTML = '';
   citas.sort((a,b)=>a.hora.localeCompare(b.hora)).forEach(c => {
     const badgeCls = `badge-${c.estado}`;
@@ -1647,7 +1951,8 @@ async function loadAgenda() {
         <div class="cita-hora">${formatTime(c.hora)}</div>
         <span class="cita-badge ${badgeCls}">${badgeLabel}</span>
       </div>
-      <div class="cita-name">${c.nombre} ${c.apellido}</div>
+      <div class="cita-name">${c.nombre}</div>
+      ${c.padre ? `<div class="cita-sub">👤 Responsable: <strong>${c.padre}</strong></div>` : ''}
       <div class="cita-sub">${c.especialidad} · ${c.tipo} · <strong>Q${c.precio}</strong></div>
       <div class="cita-sub">📞 ${c.tel}</div>
       ${c.motivo ? `<div class="cita-motivo">"${c.motivo}"</div>`:''}
@@ -1810,8 +2115,9 @@ window.guardarBloqueo = async () => {
   const motivo = document.getElementById('blockMotivo').value.trim() || 'Reservado';
 
   try {
+    const tipo = document.getElementById('blockTipo').value;
     for (const slot of S.blockSelectedSlots) {
-      await addDoc(window._blCol, { fecha, hora: slot, medicoId, medicoNombre: medNombre, motivo, creadoEn: new Date().toISOString() });
+      await addDoc(window._blCol, { fecha, hora: slot, medicoId, medicoNombre: medNombre, motivo, tipo, creadoEn: new Date().toISOString() });
     }
     alert(`✅ ${S.blockSelectedSlots.length} slot(s) bloqueados`);
     S.blockSelectedSlots = [];
@@ -1864,6 +2170,109 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
   m.addEventListener('click', e => { if(e.target===m) m.classList.remove('active'); });
 });
 
+// ── LISTA DE ESPERA ───────────────────────────────────
+window.loadEspera = async (filtro = 'todas') => {
+  const list = document.getElementById('esperaList');
+  list.innerHTML = '<div class="loading"><div class="spinner"></div> Cargando...</div>';
+  try {
+    const snap = await getDocs(window._espCol);
+    let items = [];
+    snap.forEach(d => items.push({...d.data(), _docId: d.id}));
+    // Filter
+    if (filtro !== 'todas') items = items.filter(i => i.especialidad === filtro);
+    // Sort by date registered
+    items.sort((a,b) => a.registradoEn.localeCompare(b.registradoEn));
+
+    if (items.length === 0) {
+      list.innerHTML = '<div class="empty-state"><div class="icon">🔔</div><p>No hay pacientes en lista de espera</p></div>';
+      return;
+    }
+    list.innerHTML = '';
+    items.forEach(item => {
+      const NOMBRES_ESP_LOCAL = {
+        'medicina-interna':'Medicina Interna','diabetes':'Diabetes',
+        'pediatria':'Pediatría','neonatologia':'Neonatología','psicologia':'Psicología'
+      };
+      const espNombre = NOMBRES_ESP_LOCAL[item.especialidad] || item.especialidad;
+      const fechaPref = item.fechaPreferida
+        ? new Date(item.fechaPreferida+'T12:00:00').toLocaleDateString('es-GT',{day:'numeric',month:'long'})
+        : 'Cualquier fecha';
+      const waMsg = encodeURIComponent(
+        `Hola ${item.nombre}, le contactamos de la *Clínica Médica Juan Ciudad Duarte*.
+
+` +
+        `Tenemos disponibilidad en *${espNombre}*. ¿Le gustaría agendar su cita?
+
+` +
+        `Puede responder este mensaje o llamarnos. ¡Le esperamos! 😊`
+      );
+      const div = document.createElement('div');
+      div.className = 'espera-card';
+      div.innerHTML = `
+        <div class="espera-info">
+          <div class="espera-nombre">${item.nombre}</div>
+          <div class="espera-sub">🩺 ${espNombre} &nbsp;·&nbsp; 📞 ${item.tel}</div>
+          <div class="espera-fecha">📅 Prefiere: ${fechaPref} &nbsp;·&nbsp; Registrado: ${new Date(item.registradoEn).toLocaleDateString('es-GT')}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          <button class="btn-wa" data-wa="https://wa.me/502${item.tel.replace(/\D/g,'')}?text=${waMsg}">
+            💬 WhatsApp
+          </button>
+          <button class="cita-btn btn-danger" data-remove="${item._docId}" style="font-size:11px">
+            Remover
+          </button>
+        </div>`;
+      // Listeners
+      div.querySelector('[data-wa]').addEventListener('click', e => {
+        window.open(e.currentTarget.dataset.wa, '_blank');
+      });
+      div.querySelector('[data-remove]').addEventListener('click', async e => {
+        if (!confirm('¿Remover de la lista de espera?')) return;
+        await deleteDoc(doc(window._db,'lista_espera', e.currentTarget.dataset.remove));
+        loadEspera(filtro);
+      });
+      list.appendChild(div);
+    });
+  } catch(e) {
+    list.innerHTML = '<p style="color:var(--text-muted);font-size:14px">Error cargando lista</p>';
+  }
+};
+
+window.guardarEspera = async () => {
+  const nombre = document.getElementById('esperaNombre').value.trim();
+  const tel = document.getElementById('esperaTel').value.trim();
+  const fecha = document.getElementById('esperaFecha').value;
+  if (!nombre || !tel) { alert('Por favor ingresa tu nombre y teléfono'); return; }
+  try {
+    await addDoc(window._espCol, {
+      nombre, tel,
+      especialidad: S.especialidad,
+      fechaPreferida: fecha || null,
+      registradoEn: new Date().toISOString()
+    });
+    closeModal('modalEspera');
+    document.getElementById('esperaNombre').value = '';
+    document.getElementById('esperaTel').value = '';
+    document.getElementById('esperaFecha').value = '';
+    // Show thank you in step3
+    document.getElementById('esperaBannerCTA').innerHTML = `
+      <div class="espera-icon">✅</div>
+      <h3>¡Quedaste en lista de espera!</h3>
+      <p>Te contactaremos en cuanto haya disponibilidad. Puedes seguir revisando otras fechas.</p>`;
+  } catch(e) { alert('Error al registrarse. Intenta de nuevo.'); }
+};
+
+// Show espera banner when slots are fully taken
+function checkEsperaBanner() {
+  const banner = document.getElementById('esperaBannerCTA');
+  if (!banner) return;
+  const slotsGrid = document.getElementById('slotsGrid');
+  if (!slotsGrid) return;
+  // Show if no available slots rendered
+  const availableSlots = slotsGrid.querySelectorAll('.slot:not(.occupied):not(.admin-reserved)');
+  banner.style.display = availableSlots.length === 0 && S.selectedDate ? 'block' : 'none';
+}
+
 // ── INIT ──────────────────────────────────────────────
 updateSteps(1);
 
@@ -1890,6 +2299,46 @@ document.addEventListener('DOMContentLoaded', () => {
   // Back to step1 from step2
   const bb1 = document.getElementById('btnBackToStep1');
   if (bb1) bb1.addEventListener('click', () => goStep(1));
+
+  // Lista de espera — unirse button
+  const bue = document.getElementById('btnUnirseEspera');
+  if (bue) bue.addEventListener('click', () => {
+    document.getElementById('esperaEspLabel').textContent = NOMBRES_ESP[S.especialidad] || S.especialidad;
+    // Pre-fill fecha if selected
+    if (S.selectedDate) document.getElementById('esperaFecha').value = dateToStr(S.selectedDate);
+    openModal('modalEspera');
+  });
+
+  // Guardar espera
+  const bge = document.getElementById('btnGuardarEspera');
+  if (bge) bge.addEventListener('click', guardarEspera);
+
+  // Espera filter tabs
+  document.querySelectorAll('[data-espfilter]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('[data-espfilter]').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      loadEspera(tab.dataset.espfilter);
+    });
+  });
+
+  // Reminder — go to bloquear tab for tomorrow
+  const rd = document.getElementById('reminderDismiss');
+  if (rd) rd.addEventListener('click', () => {
+    // Calculate tomorrow (skip sunday)
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (tomorrow.getDay() === 0) tomorrow.setDate(tomorrow.getDate() + 1);
+    // Switch to bloquear tab
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-tab')[1].classList.add('active');
+    ['tabAgenda','tabBloquear','tabConfig'].forEach(id => document.getElementById(id).style.display='none');
+    document.getElementById('tabBloquear').style.display = 'block';
+    // Set fecha to tomorrow
+    document.getElementById('blockFecha').value = dateToStr(tomorrow);
+    loadBloqueos();
+    loadBloqueosActivos();
+  });
 
   // Step navigation buttons
   document.querySelectorAll('[data-gostep]').forEach(btn => {
@@ -1923,7 +2372,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
       btn.classList.add('active');
-      ['tabAgenda','tabBloquear','tabConfig'].forEach(id => {
+      ['tabAgenda','tabBloquear','tabEspera','tabConfig'].forEach(id => {
         document.getElementById(id).style.display = 'none';
       });
       const tab = btn.dataset.tab;
@@ -1931,6 +2380,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById(tabId).style.display = 'block';
       S.currentTab = tab;
       if (tab === 'bloquear') { loadBloqueos(); loadBloqueosActivos(); }
+      if (tab === 'espera') { loadEspera('todas'); }
     });
   });
 
