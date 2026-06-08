@@ -1212,7 +1212,8 @@
       </div>
       <div class="card" style="text-align:center">
         <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px">¿Necesitas otra cita o para alguien más?</p>
-        <button class="btn-primary" id="btnResetPatient">Agendar otra cita</button>
+        <button class="btn-primary" id="btnResetPatient" style="margin-bottom:10px">Agendar otra cita</button>
+        <button class="btn-secondary" id="btnCerrarApp" style="width:100%">✕ Cerrar</button>
       </div>
     </div>
 
@@ -1440,15 +1441,10 @@
 <!-- MODAL: DÍA FUTURO -->
 <div class="modal-overlay" id="modalFuturo">
   <div class="modal">
-    <div style="text-align:center;margin-bottom:16px">
+    <div style="text-align:center;margin-bottom:20px">
       <div style="font-size:40px;margin-bottom:8px">📅</div>
-      <h3 style="margin-bottom:8px">Programación no disponible</h3>
-      <p style="font-size:14px;color:var(--text-muted);line-height:1.5" id="futuroMsg">
-        La agenda para este día aún no ha sido configurada por nuestro equipo.
-      </p>
-    </div>
-    <div style="background:var(--celeste-light);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;font-size:13px;color:var(--navy);line-height:1.5">
-      💡 Puedes unirte a la <strong>lista de espera</strong> indicando tu horario preferido. Te contactaremos en cuanto haya disponibilidad confirmada.
+      <h3 style="margin-bottom:10px">Programación no disponible</h3>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.6" id="futuroMsg"></p>
     </div>
     <div class="modal-actions">
       <button class="btn-secondary" data-closemodal="modalFuturo">Cerrar</button>
@@ -1786,8 +1782,11 @@ function renderCalendar() {
       dayDiv.addEventListener('click', () => {
         document.getElementById('futuroMsg').textContent =
           bookable === 'tomorrow_pending'
-            ? `La agenda de mañana estará disponible al finalizar la jornada de hoy. Mientras tanto puedes unirte a la lista de espera con tu horario preferido.`
-            : `La agenda para el ${dateLabel} aún no está configurada. Puedes unirte a la lista de espera y te contactaremos cuando haya disponibilidad.`;
+            ? `Aún estamos revisando la agenda del ${dateLabel}. Por favor deja tus datos y alguien de nuestro equipo te contactará para gestionar el día que más te convenga para tu cita.`
+            : `Aún estamos revisando la agenda del ${dateLabel}. Por favor deja tus datos y alguien de nuestro equipo te contactará para gestionar el día que más te convenga para tu cita.`;
+        // Highlight the date in the message
+        const msgEl = document.getElementById('futuroMsg');
+        msgEl.innerHTML = msgEl.textContent.replace(dateLabel, `<strong style="color:var(--navy);font-size:16px;display:block;margin:8px 0">${dateLabel}</strong>`);
         document.getElementById('esperaFecha').value = fechaStr;
         openModal('modalFuturo');
       });
@@ -2545,11 +2544,8 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 window.showFutureModal = (fechaLabel) => {
   const msg = document.getElementById('futuroMsg');
   if (msg) {
-    if (fechaLabel === 'mañana') {
-      msg.textContent = 'La agenda de mañana estará disponible al finalizar la jornada de hoy. Mientras tanto puedes unirte a la lista de espera.';
-    } else {
-      msg.textContent = `La agenda para el ${fechaLabel} aún no ha sido configurada por nuestro equipo.`;
-    }
+    const dia = fechaLabel === 'mañana' ? 'mañana' : fechaLabel;
+    msg.innerHTML = `Aún estamos revisando la agenda del<br><strong style="color:var(--navy);font-size:18px;display:block;margin:8px 0;text-transform:capitalize">${dia}</strong>Por favor deja tus datos y alguien de nuestro equipo te contactará para gestionar el día que más te convenga para tu cita.`;
   }
   openModal('modalFuturo');
 };
@@ -2864,6 +2860,14 @@ function initAllListeners() {
   // Reset patient
   const brp = document.getElementById('btnResetPatient');
   if (brp) brp.addEventListener('click', resetPatient);
+
+  // Cerrar app — close tab or go to blank
+  const bca = document.getElementById('btnCerrarApp');
+  if (bca) bca.addEventListener('click', () => {
+    window.close();
+    // Fallback if window.close() is blocked (most browsers block it)
+    window.location.href = 'about:blank';
+  });
 
   // Modal close buttons
   document.querySelectorAll('[data-closemodal]').forEach(btn => {
