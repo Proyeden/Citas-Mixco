@@ -1581,12 +1581,10 @@ document.getElementById('pwa-manifest').href = manifestURL;
         <h2>Lista de espera</h2>
         <p class="subtitle">Pacientes esperando un espacio disponible</p>
         <div class="filter-tabs" id="esperaFilterTabs">
-          <div class="filter-tab active" data-espfilter="todas">Todas</div>
-          <div class="filter-tab" data-espfilter="medicina-interna">Medicina Interna</div>
-          <div class="filter-tab" data-espfilter="diabetes">Diabetes</div>
-          <div class="filter-tab" data-espfilter="pediatria">Pediatría</div>
-          <div class="filter-tab" data-espfilter="neonatologia">Neonatología</div>
-          <div class="filter-tab" data-espfilter="psicologia">Psicología</div>
+          <div class="filter-tab active" data-espfilter="todas">Todos</div>
+          <div class="filter-tab" data-espfilter="denis">Dr. Cotzojay</div>
+          <div class="filter-tab" data-espfilter="nochez">Dra. Nóchez</div>
+          <div class="filter-tab" data-espfilter="pamela">Lic. Castellanos</div>
         </div>
         <div id="esperaList"></div>
       </div>
@@ -2727,7 +2725,8 @@ async function loadAgenda() {
   citas.forEach(c => citasMap.set(c.hora, c));
 
   list.innerHTML = '';
-  citas.sort((a,b)=>a.hora.localeCompare(b.hora)).forEach(c => {
+
+  function buildCitaCard(c) {
     const badgeCls = `badge-${c.estado}`;
     const badgeLabel = c.estado==='confirmada'?'✅ Confirmada':c.estado==='cancelada'?'❌ Cancelada':'⏳ Pendiente';
     const div = document.createElement('div');
@@ -2744,7 +2743,7 @@ async function loadAgenda() {
       ${c.motivo ? `<div class="cita-motivo">"${c.motivo}"</div>`:''}
       ${c.nota ? `<div class="note-tag">📝 ${c.nota}</div>`:''}
       <div class="cita-actions">
-        ${c.estado!=='confirmada'&&c.estado!=='cancelada'?`<button class="cita-btn btn-success" data-action="confirmar" data-docid="${c._docId}">✅ Confirmar llegada</button>`:''}
+        ${c.estado!=='confirmada'&&c.estado!=='cancelada'?`<button class="cita-btn btn-success" data-action="confirmar" data-docid="${c._docId}">✅ Confirmar</button>`:''}
         ${c.estado!=='cancelada'?`<button class="cita-btn" data-action="reagendar" data-docid="${c._docId}" data-medicoid="${c.medicoId}">🔄 Reagendar</button>`:''}
         ${c.estado!=='cancelada'?`<button class="cita-btn btn-danger" data-action="cancelar" data-docid="${c._docId}">❌ Cancelar</button>`:''}
         <button class="cita-btn" data-action="nota" data-docid="${c._docId}" data-nota="${encodeURIComponent(c.nota||'')}">📝 Nota</button>
@@ -2758,8 +2757,31 @@ async function loadAgenda() {
         else if (act==='nota') openNota(did, decodeURIComponent(btn.dataset.nota));
       });
     });
-    list.appendChild(div);
-  });
+    return div;
+  }
+
+  const MEDICO_ORDER = ['Denis Cotzojay','María José Nóchez','Pamela Castellanos'];
+
+  if (S.filterMedico === 'todos') {
+    // Group by professional
+    const byMedico = {};
+    citas.forEach(c => {
+      if (!byMedico[c.medicoNombre]) byMedico[c.medicoNombre] = [];
+      byMedico[c.medicoNombre].push(c);
+    });
+    MEDICO_ORDER.forEach(nombre => {
+      if (!byMedico[nombre] || byMedico[nombre].length === 0) return;
+      const header = document.createElement('div');
+      header.style.cssText = 'font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:0.08em;padding:10px 0 6px;border-bottom:2px solid var(--navy);margin-bottom:8px';
+      header.textContent = nombre;
+      list.appendChild(header);
+      byMedico[nombre].sort((a,b)=>a.hora.localeCompare(b.hora)).forEach(c => list.appendChild(buildCitaCard(c)));
+      const spacer = document.createElement('div'); spacer.style.height='10px';
+      list.appendChild(spacer);
+    });
+  } else {
+    citas.sort((a,b)=>a.hora.localeCompare(b.hora)).forEach(c => list.appendChild(buildCitaCard(c)));
+  }
 }
 
 window.cambiarEstado = async (docId, estado) => {
@@ -2943,8 +2965,8 @@ async function loadBloqueosActivos() {
     snap.forEach(d => bloqueos.push({...d.data(), _docId: d.id}));
 
     const futuros = bloqueos
-      .filter(b => b.fecha >= hoy)
-      .sort((a,b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora));
+      .filter(b => b.fecha >= hoy && b.tipo !== 'duracion' && b.hora) // exclude duration records
+      .sort((a,b) => a.fecha.localeCompare(b.fecha) || (a.hora||'').localeCompare(b.hora||''));
 
     if (futuros.length === 0) {
       c.innerHTML = '<p style="color:var(--text-muted);font-size:14px">No hay bloqueos activos</p>';
@@ -3044,7 +3066,15 @@ window.loadEspera = async (filtro = 'todas') => {
     let items = [];
     snap.forEach(d => items.push({...d.data(), _docId: d.id}));
     // Filter
-    if (filtro !== 'todas') items = items.filter(i => i.especialidad === filtro);
+    if (filtro !== 'todas') {
+      const medicoEsps = {
+        'denis': ['medicina-interna','diabetes'],
+        'nochez': ['pediatria','neonatologia'],
+        'pamela': ['psicologia']
+      };
+      const esps = medicoEsps[filtro] || [];
+      items = items.filter(i => esps.includes(i.especialidad));
+    }
     // Sort by date registered
     items.sort((a,b) => a.registradoEn.localeCompare(b.registradoEn));
 
@@ -3478,6 +3508,7 @@ function initAllListeners() {
       loadEspera(tab.dataset.espfilter);
     });
   });
+
 
   // Cargar dur editor
   const bcd = document.getElementById('btnCargarDuraciones');
