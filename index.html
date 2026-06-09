@@ -625,50 +625,60 @@ document.getElementById('pwa-manifest').href = manifestURL;
   .date-nav {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: 10px;
+    margin-bottom: 14px;
+    background: var(--navy);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
   }
   .date-nav button {
-    background: var(--warm-white);
-    border: 1.5px solid var(--border);
-    width: 36px;
-    height: 36px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
+    color: white;
+    flex-shrink: 0;
   }
-  .date-nav button:hover { background: var(--navy); color: white; border-color: var(--navy); }
+  .date-nav button:hover { background: rgba(255,255,255,0.3); }
   .date-nav .current-date {
     flex: 1;
     text-align: center;
     font-family: 'Playfair Display', serif;
-    font-size: 18px;
-    color: var(--navy);
+    font-size: 16px;
+    color: white;
     text-transform: capitalize;
   }
 
   .filter-tabs {
     display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
+    gap: 6px;
+    margin-bottom: 12px;
     overflow-x: auto;
     padding-bottom: 4px;
+    scrollbar-width: none;
   }
+  .filter-tabs::-webkit-scrollbar { display: none; }
   .filter-tab {
-    padding: 7px 16px;
+    padding: 5px 12px;
     border-radius: 100px;
     border: 1.5px solid var(--border);
     background: var(--warm-white);
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.15s;
     color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
   }
   .filter-tab.active { background: var(--navy); color: white; border-color: var(--navy); }
 
@@ -682,24 +692,25 @@ document.getElementById('pwa-manifest').href = manifestURL;
     background: var(--warm-white);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 12px 8px;
+    padding: 10px 6px;
     text-align: center;
   }
-  .stat-box .stat-num { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--navy); }
-  .stat-box .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .stat-box .stat-num { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--navy); line-height: 1; }
+  .stat-box .stat-label { font-size: 10px; color: var(--text-muted); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
 
   .cita-card {
     background: var(--warm-white);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 16px;
-    margin-bottom: 10px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
     border-left: 4px solid var(--border);
-    transition: all 0.2s;
+    transition: all 0.15s;
   }
-  .cita-card.confirmada { border-left-color: var(--sage); }
+  .cita-card:hover { box-shadow: var(--shadow); }
+  .cita-card.confirmada { border-left-color: var(--sage); background: #FAFFFE; }
   .cita-card.pendiente { border-left-color: #2196C4; }
-  .cita-card.cancelada { border-left-color: var(--rose); opacity: 0.6; }
+  .cita-card.cancelada { border-left-color: var(--rose); opacity: 0.5; }
   /* Admin slot view */
   .slot-admin-row {
     background: var(--warm-white);
@@ -764,20 +775,22 @@ document.getElementById('pwa-manifest').href = manifestURL;
     flex-wrap: wrap;
   }
   .cita-btn {
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 6px;
     border: 1px solid var(--border);
     background: var(--cream);
     font-family: 'DM Sans', sans-serif;
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.15s;
     color: var(--text);
+    white-space: nowrap;
   }
   .cita-btn:hover { background: var(--navy); color: white; border-color: var(--navy); }
   .cita-btn.btn-danger:hover { background: var(--rose); border-color: var(--rose); }
-  .cita-btn.btn-success:hover { background: var(--sage); border-color: var(--sage); }
+  .cita-btn.btn-success { border-color: var(--sage); color: var(--sage); }
+  .cita-btn.btn-success:hover { background: var(--sage); color: white; border-color: var(--sage); }
 
   /* ── ADMIN BLOCK ── */
   .admin-block-card {
@@ -1079,26 +1092,36 @@ document.getElementById('pwa-manifest').href = manifestURL;
 
   .nav-tabs {
     display: flex;
-    gap: 0;
+    gap: 6px;
     margin-bottom: 20px;
-    border-bottom: 2px solid var(--border);
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
   }
+  .nav-tabs::-webkit-scrollbar { display: none; }
   .nav-tab {
-    padding: 12px 20px;
-    font-size: 14px;
-    font-weight: 500;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
     color: var(--text-muted);
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
+    border-radius: 100px;
+    border: 1.5px solid var(--border);
+    background: var(--warm-white);
     transition: all 0.2s;
-    background: none;
-    border-top: none;
-    border-left: none;
-    border-right: none;
     font-family: 'DM Sans', sans-serif;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
-  .nav-tab.active { color: var(--navy); border-bottom-color: var(--navy); }
+  .nav-tab.active {
+    color: white;
+    background: var(--navy);
+    border-color: var(--navy);
+  }
+  .nav-tab:hover:not(.active) {
+    border-color: var(--navy);
+    color: var(--navy);
+  }
 
   .note-tag {
     display: inline-block;
@@ -1403,8 +1426,11 @@ document.getElementById('pwa-manifest').href = manifestURL;
 <div id="personalView" class="view">
   <div class="container">
     <div class="personal-header">
-      <h2>📋 Panel de Personal</h2>
-      <button class="btn-personal" id="btnSalirPersonal" style="font-size:12px; padding:6px 12px;">Salir</button>
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:16px;color:var(--gold-light);font-weight:600">Panel de Personal</div>
+        <div id="personalDateSmall" style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px"></div>
+      </div>
+      <button class="btn-personal" id="btnSalirPersonal" style="font-size:11px;padding:6px 12px;">← Salir</button>
     </div>
 
     <!-- ESPERA NOTIFICATION BANNER -->
@@ -1435,11 +1461,11 @@ document.getElementById('pwa-manifest').href = manifestURL;
 
     <!-- TABS -->
     <div class="nav-tabs">
-      <button class="nav-tab active" data-tab="agenda">Agenda del día</button>
-      <button class="nav-tab" data-tab="duracion">Duraciones</button>
-      <button class="nav-tab" data-tab="bloquear">Bloquear slots</button>
-      <button class="nav-tab" data-tab="espera">Lista de espera</button>
-      <button class="nav-tab" data-tab="config">Configuración</button>
+      <button class="nav-tab active" data-tab="agenda">📋 Agenda</button>
+      <button class="nav-tab" data-tab="espera">🔔 En espera</button>
+      <button class="nav-tab" data-tab="bloquear">🔒 Bloquear</button>
+      <button class="nav-tab" data-tab="duracion">⏱ Duraciones</button>
+      <button class="nav-tab" data-tab="config">⚙️ Config</button>
     </div>
 
     <!-- TAB: AGENDA -->
@@ -1458,11 +1484,20 @@ document.getElementById('pwa-manifest').href = manifestURL;
       </div>
 
       <div class="stats-row">
-        <div class="stat-box"><div class="stat-num" id="statTotal">0</div><div class="stat-label">Total</div></div>
-        <div class="stat-box"><div class="stat-num" id="statConf">0</div><div class="stat-label">Confirmadas</div></div>
-        <div class="stat-box"><div class="stat-num" id="statPend">0</div><div class="stat-label">Pendientes</div></div>
-        <div class="stat-box" style="cursor:pointer" id="btnLimpiarCanc" title="Limpiar canceladas de hoy">
-          <div class="stat-num" id="statCanc">0</div>
+        <div class="stat-box">
+          <div class="stat-num" id="statTotal">0</div>
+          <div class="stat-label">Total</div>
+        </div>
+        <div class="stat-box" style="border-left:3px solid var(--sage)">
+          <div class="stat-num" style="color:var(--sage)" id="statConf">0</div>
+          <div class="stat-label">Confirmadas</div>
+        </div>
+        <div class="stat-box" style="border-left:3px solid #2196C4">
+          <div class="stat-num" style="color:#2196C4" id="statPend">0</div>
+          <div class="stat-label">Pendientes</div>
+        </div>
+        <div class="stat-box" style="border-left:3px solid var(--rose);cursor:pointer" id="btnLimpiarCanc" title="Tap para limpiar canceladas">
+          <div class="stat-num" style="color:var(--rose)" id="statCanc">0</div>
           <div class="stat-label">Canceladas 🗑️</div>
         </div>
       </div>
@@ -2460,6 +2495,9 @@ function initPersonalView() {
   S.personalDate = new Date();
   S.currentTab = 'agenda';
   updatePersonalDateDisplay();
+  // Show date in header
+  const ds = document.getElementById('personalDateSmall');
+  if (ds) ds.textContent = new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
   loadAgenda();
   // Set today as default for block
   document.getElementById('blockFecha').value = dateToStr(new Date());
