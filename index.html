@@ -2270,15 +2270,9 @@ async function renderSlots() {
   const allSlots = h.slots(ourDow);
 
   const dateStr = dateToStr(S.selectedDate);
-  const occupied = new Set();     // citas reales (web)
-  const adminBlocked = new Set(); // bloqueos admin (directo/estrategia)
-
-  // Médicos compartidos entre especialidades
-  const MEDICO_ESPECIALIDADES = {
-    'denis': ['medicina-interna','diabetes'],
-    'nochez': ['pediatria','neonatologia'],
-    'pamela': ['psicologia']
-  };
+  const occupied = new Set();
+  const adminBlocked = new Set();
+  let duracionOverrides = {}; // declared outside try so always accessible
 
   try {
     // Query por medicoId — cubre todas las especialidades del mismo médico
@@ -2295,7 +2289,6 @@ async function renderSlots() {
       where('fecha','==',dateStr),
       where('medicoId','==',mid));
     const bsnap = await getDocs(bq);
-    let duracionOverrides = {};
     bsnap.forEach(d => {
       const tipo = d.data().tipo || 'admin';
       if (tipo === 'directo') {
@@ -2349,22 +2342,17 @@ async function renderSlots() {
     }
   }
 
-  // ── FILTRAR SLOTS QUE PASAN DEL HORARIO OFICIAL (paciente no los ve) ──
-  // Solo mostrar slots cuya duración completa cabe antes del cierre oficial
-  const officialEndStr = HORARIOS[mid].officialEnd ? HORARIOS[mid].officialEnd(ourDow) : null;
+  // ── FILTRAR SLOTS — solo los que EMPIEZAN antes del horario oficial ──
+  // Slots que empiezan antes de las 5pm son visibles aunque terminen después
+  const officialEndStr = HORARIOS[mid] && HORARIOS[mid].officialEnd
+    ? HORARIOS[mid].officialEnd(ourDow) : null;
   if (officialEndStr) {
     const officialEndMins = timeToMins(officialEndStr);
-    const filtered = allSlots.filter(s => {
-      const slotMins = timeToMins(s);
-      // Get this slot's duration from overrides or default 45
-      const slotDur = Object.keys(duracionOverrides).length > 0
-        ? (duracionOverrides[s] || 45)
-        : 45;
-      // Slot must START before official end AND END before/at official end
-      return slotMins < officialEndMins && slotMins + slotDur <= officialEndMins;
-    });
-    allSlots.length = 0;
-    filtered.forEach(s => allSlots.push(s));
+    const filtered = allSlots.filter(s => timeToMins(s) < officialEndMins);
+    if (filtered.length > 0) { // only filter if result is non-empty
+      allSlots.length = 0;
+      filtered.forEach(s => allSlots.push(s));
+    }
   }
 
   // ── BLOQUEO AUTOMÁTICO DE SLOTS PASADOS (15 min) ─────────────────────
