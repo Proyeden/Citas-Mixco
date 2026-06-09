@@ -1602,6 +1602,17 @@ document.getElementById('pwa-manifest').href = manifestURL;
           <div style="display:flex;align-items:center;gap:10px"><div class="slot-dot dot-libre"></div><span style="font-size:14px"><strong>Disponible</strong> — visible al público (máx. 2)</span></div>
         </div>
       </div>
+      <div class="card" style="margin-bottom:12px">
+        <h2>Notificaciones</h2>
+        <p class="subtitle">Activa las notificaciones para recibir alertas con sonido</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0">
+          <span style="font-size:14px;color:var(--text)">Notificaciones del sistema</span>
+          <button class="btn-primary" id="btnActivarNotif" style="width:auto;padding:8px 16px;font-size:13px">
+            🔔 Activar
+          </button>
+        </div>
+        <div id="notifStatus" style="font-size:12px;color:var(--text-muted);margin-top:4px"></div>
+      </div>
       <div class="card">
         <h2>Configuración del sistema</h2>
         <div class="config-section">
@@ -2433,6 +2444,8 @@ window.confirmarCita = async () => {
     }).catch(e => console.log('EmailJS error:', e));
   }
 
+  // Play sound for the patient confirmation
+  try { playNotifSound('cita'); } catch(e) {}
   // Notificación automática via Make.com webhook
   try {
     await fetch('https://hook.us2.make.com/ikbjgcxbi0ixaef3pyh2e1mx47rfkpcc', {
@@ -2496,6 +2509,10 @@ function initPersonalView() {
   // Show date in header
   const ds = document.getElementById('personalDateSmall');
   if (ds) ds.textContent = new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
+  // Request notification permission and start polling
+  requestNotifPermission().then(granted => {
+    if (granted) startNotifPolling();
+  });
   loadAgenda();
   // Set today as default for block
   document.getElementById('blockFecha').value = dateToStr(new Date());
@@ -2964,8 +2981,20 @@ async function loadBloqueosActivos() {
     const bloqueos = [];
     snap.forEach(d => bloqueos.push({...d.data(), _docId: d.id}));
 
+    // Hide today's bloqueos if jornada already ended
+    const now2 = new Date();
+    const dow2 = now2.getDay();
+    const mins2 = now2.getHours() * 60 + now2.getMinutes();
+    const finJornada2 = (dow2 >= 1 && dow2 <= 4) ? 17*60 : dow2 === 5 ? 15*60 : 14*60;
+    const jornadaTermino2 = mins2 >= finJornada2;
+
     const futuros = bloqueos
-      .filter(b => b.fecha >= hoy && b.tipo !== 'duracion' && b.hora) // exclude duration records
+      .filter(b => {
+        if (b.tipo === 'duracion' || !b.hora) return false; // exclude duration records
+        if (b.fecha < hoy) return false; // past days
+        if (b.fecha === hoy && jornadaTermino2) return false; // today after jornada
+        return true;
+      })
       .sort((a,b) => a.fecha.localeCompare(b.fecha) || (a.hora||'').localeCompare(b.hora||''));
 
     if (futuros.length === 0) {
@@ -3171,6 +3200,127 @@ function checkEsperaBanner() {
 // ── INIT ──────────────────────────────────────────────
 updateSteps(1);
 
+// ── NOTIFICATIONS + SOUND + SERVICE WORKER ────────────
+// Sound via Web Audio API
+function playNotifSound(type = 'default') {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const patterns = {
+      'cita':   [{f:880,d:0.12},{f:1100,d:0.12},{f:1320,d:0.18}],
+      'espera': [{f:660,d:0.15},{f:880,d:0.25}],
+      'agenda': [{f:440,d:0.1},{f:440,d:0.1},{f:660,d:0.2}],
+      'default':[{f:880,d:0.2}]
+    };
+    const notes = patterns[type] || patterns.default;
+    let time = ctx.currentTime;
+    notes.forEach(({f, d}) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = f; osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + d);
+      osc.start(time); osc.stop(time + d);
+      time += d + 0.05;
+    });
+  } catch(e) {}
+}
+
+// Register Service Worker
+let _swRegistration = null;
+async function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    _swRegistration = await navigator.serviceWorker.register('./sw.js');
+    console.log('SW registered');
+  } catch(e) { console.log('SW registration failed:', e); }
+}
+registerSW();
+
+async function requestNotifPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  const result = await Notification.requestPermission();
+  return result === 'granted';
+}
+
+// Show notification — via SW if available (works when screen locked), fallback to browser
+async function showNotif(title, body, type = 'default') {
+  playNotifSound(type);
+  if (Notification.permission !== 'granted') return;
+  const icon = document.querySelector('link[rel="apple-touch-icon"]')?.href || '';
+  // Use SW for persistent notifications (works when app minimized/locked)
+  if (_swRegistration) {
+    try {
+      await _swRegistration.showNotification(title, {
+        body, icon, badge: icon,
+        tag: type, renotify: true,
+        vibrate: [200, 100, 200]
+      });
+      return;
+    } catch(e) {}
+  }
+  // Fallback to basic notification
+  const n = new Notification(title, { body, icon, tag: type, renotify: true });
+  setTimeout(() => n.close(), 8000);
+}
+
+// Track counts
+window._lastCitaCount = -1;
+window._lastEsperaCount = -1;
+
+async function checkNewNotifications() {
+  if (Notification.permission !== 'granted') return;
+  const today = dateToStr(new Date());
+  try {
+    const q = query(window._col, where('fecha','==',today));
+    const snap = await getDocs(q);
+    const count = snap.size;
+    if (window._lastCitaCount >= 0 && count > window._lastCitaCount) {
+      const diff = count - window._lastCitaCount;
+      await showNotif('🏥 Nueva cita agendada',
+        `${diff} nueva${diff>1?'s':''} cita${diff>1?'s':''} para hoy`, 'cita');
+    }
+    window._lastCitaCount = count;
+
+    const eq = await getDocs(window._espCol);
+    const ecount = eq.size;
+    if (window._lastEsperaCount >= 0 && ecount > window._lastEsperaCount) {
+      const diff = ecount - window._lastEsperaCount;
+      await showNotif('🔔 Lista de espera',
+        `${diff} paciente${diff>1?'s':''} nuevo${diff>1?'s':''} en espera`, 'espera');
+    }
+    window._lastEsperaCount = ecount;
+  } catch(e) {}
+}
+
+function checkAgendaNotif() {
+  const now = new Date();
+  const dow = now.getDay();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const remind =
+    (dow >= 1 && dow <= 4 && mins >= 16*60 && mins <= 16*60+2) ||
+    ((dow === 5 || dow === 6) && mins >= 12*60 && mins <= 12*60+2);
+  if (remind) showNotif('⏰ Configura la agenda de mañana',
+    'Recuerda bloquear los slots antes de cerrar', 'agenda');
+}
+
+window._notifInterval = null;
+function startNotifPolling() {
+  if (window._notifInterval) clearInterval(window._notifInterval);
+  checkNewNotifications();
+  window._notifInterval = setInterval(() => {
+    checkNewNotifications();
+    checkAgendaNotif();
+  }, 60 * 1000);
+}
+function stopNotifPolling() {
+  if (window._notifInterval) clearInterval(window._notifInterval);
+  window._lastCitaCount = -1;
+  window._lastEsperaCount = -1;
+}
+
 
 // ── PWA INSTALL ────────────────────────────────────────
 let _deferredPrompt = null;
@@ -3366,25 +3516,41 @@ async function guardarDuraciones() {
 // ── CLEANUP OLD RECORDS ────────────────────────────────
 async function cleanupOldRecords() {
   try {
-    const today = dateToStr(new Date());
-    // Delete citas from past days (canceladas and all past)
+    const now = new Date();
+    const today = dateToStr(now);
+    const dow = now.getDay();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    // Fin de jornada: lun-jue 17:00, vie 15:00, sab 14:00
+    const finJornada = (dow >= 1 && dow <= 4) ? 17*60 : dow === 5 ? 15*60 : 14*60;
+    const jornadaTermino = mins >= finJornada;
+
+    // Delete cancelled citas from past days
     const q = query(window._col, where('fecha', '<', today));
     const snap = await getDocs(q);
     const toDelete = [];
     snap.forEach(d => {
-      // Only delete cancelled ones automatically — keep past confirmed for records
-      if (d.data().estado === 'cancelada') toDelete.push(d.id);
+      if (d.data().estado === 'cancelada') toDelete.push({col:'citas', id: d.id});
     });
-    for (const id of toDelete) {
-      await deleteDoc(doc(window._db, 'citas', id));
-    }
-    // Also clean old bloqueos
+
+    // Delete bloqueos from past days
     const bq = query(window._blCol, where('fecha', '<', today));
     const bsnap = await getDocs(bq);
-    for (const d of bsnap.docs) {
-      await deleteDoc(doc(window._db, 'bloqueos', d.id));
+    bsnap.forEach(d => toDelete.push({col:'bloqueos', id: d.id}));
+
+    // If today's jornada ended → also delete today's bloqueos (not citas)
+    if (jornadaTermino) {
+      const bqToday = query(window._blCol, where('fecha', '==', today));
+      const bsnapToday = await getDocs(bqToday);
+      bsnapToday.forEach(d => {
+        // Only delete non-duracion bloqueos (keep duration overrides for records)
+        if (d.data().tipo !== 'duracion') toDelete.push({col:'bloqueos', id: d.id});
+      });
     }
-    if (toDelete.length > 0) console.log(`Cleaned ${toDelete.length} old cancelled records`);
+
+    for (const item of toDelete) {
+      await deleteDoc(doc(window._db, item.col, item.id));
+    }
+    if (toDelete.length > 0) console.log(`Cleaned ${toDelete.length} old records`);
   } catch(e) { console.log('Cleanup error:', e); }
 }
 
@@ -3533,6 +3699,22 @@ function initAllListeners() {
     } catch(e) { alert('Error al limpiar'); }
   });
 
+  // Activar notificaciones
+  const ban = document.getElementById('btnActivarNotif');
+  if (ban) ban.addEventListener('click', async () => {
+    const granted = await requestNotifPermission();
+    const status = document.getElementById('notifStatus');
+    if (granted) {
+      ban.textContent = '✅ Activadas';
+      ban.disabled = true;
+      if (status) status.textContent = 'Recibirás alertas de nuevas citas, lista de espera y recordatorio de agenda.';
+      startNotifPolling();
+      showNotif('✅ Notificaciones activadas', 'Recibirás alertas de la clínica', 'default');
+    } else {
+      if (status) status.textContent = '⚠️ Permiso denegado. Activa las notificaciones en la configuración del navegador.';
+    }
+  });
+
   // Reminder — go to bloquear tab for tomorrow
   const rd = document.getElementById('reminderDismiss');
   if (rd) rd.addEventListener('click', () => {
@@ -3579,6 +3761,7 @@ function initAllListeners() {
   // Salir personal — use querySelectorAll to catch all instances
   document.querySelectorAll('#btnSalirPersonal').forEach(btn => {
     btn.addEventListener('click', () => {
+      stopNotifPolling();
       showView('patientView');
       window.scrollTo(0,0);
     });
