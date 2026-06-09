@@ -2509,10 +2509,8 @@ function initPersonalView() {
   // Show date in header
   const ds = document.getElementById('personalDateSmall');
   if (ds) ds.textContent = new Date().toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
-  // Request notification permission and start polling
-  requestNotifPermission().then(granted => {
-    if (granted) startNotifPolling();
-  });
+  // Check notification status
+  updateNotifButton();
   loadAgenda();
   // Set today as default for block
   document.getElementById('blockFecha').value = dateToStr(new Date());
@@ -3237,6 +3235,37 @@ async function registerSW() {
 }
 registerSW();
 
+function updateNotifButton() {
+  const ban = document.getElementById('btnActivarNotif');
+  const status = document.getElementById('notifStatus');
+  if (!ban) return;
+
+  if (!('Notification' in window)) {
+    ban.textContent = '❌ No soportado';
+    ban.disabled = true;
+    if (status) status.textContent = 'Tu navegador no soporta notificaciones.';
+    return;
+  }
+
+  const perm = Notification.permission;
+  if (perm === 'granted') {
+    ban.textContent = '✅ Notificaciones activas';
+    ban.disabled = true;
+    ban.style.background = 'var(--sage)';
+    if (status) status.textContent = 'Recibirás alertas de nuevas citas, lista de espera y recordatorio de agenda.';
+    startNotifPolling();
+  } else if (perm === 'denied') {
+    ban.textContent = '⚠️ Bloqueadas en el navegador';
+    ban.disabled = true;
+    ban.style.background = 'var(--rose)';
+    if (status) status.textContent = 'Ve a Configuración del navegador → Permisos del sitio → Notificaciones → Permitir. Luego recarga la página.';
+  } else {
+    ban.textContent = '🔔 Activar notificaciones';
+    ban.disabled = false;
+    if (status) status.textContent = 'Toca para recibir alertas aunque el teléfono esté en otra app.';
+  }
+}
+
 async function requestNotifPermission() {
   if (!('Notification' in window)) return false;
   if (Notification.permission === 'granted') return true;
@@ -3704,14 +3733,10 @@ function initAllListeners() {
   if (ban) ban.addEventListener('click', async () => {
     const granted = await requestNotifPermission();
     const status = document.getElementById('notifStatus');
+    updateNotifButton();
     if (granted) {
-      ban.textContent = '✅ Activadas';
-      ban.disabled = true;
-      if (status) status.textContent = 'Recibirás alertas de nuevas citas, lista de espera y recordatorio de agenda.';
       startNotifPolling();
-      showNotif('✅ Notificaciones activadas', 'Recibirás alertas de la clínica', 'default');
-    } else {
-      if (status) status.textContent = '⚠️ Permiso denegado. Activa las notificaciones en la configuración del navegador.';
+      setTimeout(() => showNotif('✅ Notificaciones activadas', 'Recibirás alertas de la clínica', 'default'), 500);
     }
   });
 
@@ -3793,6 +3818,7 @@ function initAllListeners() {
         document.getElementById('durFecha').value = dateToStr(new Date());
         loadDurEditor();
       }
+      if (tab === 'config') { updateNotifButton(); }
     });
   });
 
