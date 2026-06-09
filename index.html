@@ -2267,7 +2267,7 @@ async function renderSlots() {
   const h = HORARIOS[mid];
   const dow = S.selectedDate.getDay();
   const ourDow = dow === 0 ? 0 : dow;
-  const allSlots = h.slots(ourDow);
+  let allSlots = h.slots(ourDow);
 
   const dateStr = dateToStr(S.selectedDate);
   const occupied = new Set();
@@ -2275,12 +2275,11 @@ async function renderSlots() {
   let duracionOverrides = {}; // declared outside try so always accessible
 
   try {
-    // Query por medicoId — cubre todas las especialidades del mismo médico
+    // Query por medicoId
     const q = query(window._col,
       where('fecha','==',dateStr),
       where('medicoId','==',mid));
     const snap = await getDocs(q);
-    // Filter canceladas in JS
     snap.forEach(d => {
       if (d.data().estado !== 'cancelada') occupied.add(d.data().hora);
     });
@@ -2294,7 +2293,6 @@ async function renderSlots() {
       if (tipo === 'directo') {
         occupied.add(d.data().hora);
       } else if (tipo === 'duracion') {
-        // Load saved duration schedule
         if (d.data().overrides) {
           try { duracionOverrides = JSON.parse(d.data().overrides); } catch(e2) {}
         }
@@ -2302,21 +2300,19 @@ async function renderSlots() {
         adminBlocked.add(d.data().hora);
       }
     });
-
-    // If duration overrides exist, rebuild allSlots with adjusted times
-    if (Object.keys(duracionOverrides).length > 0) {
-      let recalcMins = timeToMins(allSlots[0]);
-      const recalcSlots = [];
-      allSlots.forEach(() => {
-        const hora = minsToTime(recalcMins);
-        recalcSlots.push(hora);
-        const dur = duracionOverrides[hora] || 45;
-        recalcMins += dur;
-      });
-      allSlots.length = 0;
-      recalcSlots.forEach(s => allSlots.push(s));
-    }
   } catch(e) { console.log('Firebase error:', e); }
+
+  // Rebuild allSlots with duration overrides if any
+  if (Object.keys(duracionOverrides).length > 0) {
+    const recalcSlots = [];
+    let recalcMins = timeToMins(allSlots[0]);
+    allSlots.forEach(() => {
+      const hora = minsToTime(recalcMins);
+      recalcSlots.push(hora);
+      recalcMins += (duracionOverrides[hora] || 45);
+    });
+    allSlots = recalcSlots;
+  }
 
   // ── LÓGICA DE VISIBILIDAD PÚBLICA ─────────────────────────────────────
   // Regla simple: siempre mostrar los 2 slots más tempranos del día
@@ -2970,8 +2966,7 @@ window.loadBloqueos = async () => {
   // Use all slots from overrides (may include extra slots beyond base)
   if (Object.keys(blockDurOverrides).length > 0) {
     const overrideSlots = Object.keys(blockDurOverrides).sort();
-    slots.length = 0;
-    overrideSlots.forEach(s => slots.push(s));
+    slots = overrideSlots;
   }
 
   S.blockSelectedSlots = [];
