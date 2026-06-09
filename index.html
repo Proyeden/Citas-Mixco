@@ -2115,6 +2115,16 @@ window.selectDate = async (y,m,d) => {
 // Show "agenda not available" for future days — handled by isAvailableDay
 // Days beyond today/tomorrow won't be clickable in calendar
 
+function timeToMins(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+function minsToTime(mins) {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
 async function renderSlots() {
   const sec = document.getElementById('slotsSection');
   sec.style.display = 'block';
@@ -2153,14 +2163,34 @@ async function renderSlots() {
       where('fecha','==',dateStr),
       where('medicoId','==',mid));
     const bsnap = await getDocs(bq);
+    let duracionOverrides = {};
     bsnap.forEach(d => {
       const tipo = d.data().tipo || 'admin';
       if (tipo === 'directo') {
         occupied.add(d.data().hora);
+      } else if (tipo === 'duracion') {
+        // Load saved duration schedule
+        if (d.data().overrides) {
+          try { duracionOverrides = JSON.parse(d.data().overrides); } catch(e2) {}
+        }
       } else {
         adminBlocked.add(d.data().hora);
       }
     });
+
+    // If duration overrides exist, rebuild allSlots with adjusted times
+    if (Object.keys(duracionOverrides).length > 0) {
+      let recalcMins = timeToMins(allSlots[0]);
+      const recalcSlots = [];
+      allSlots.forEach(() => {
+        const hora = minsToTime(recalcMins);
+        recalcSlots.push(hora);
+        const dur = duracionOverrides[hora] || 45;
+        recalcMins += dur;
+      });
+      allSlots.length = 0;
+      recalcSlots.forEach(s => allSlots.push(s));
+    }
   } catch(e) { console.log('Firebase error:', e); }
 
   // ── LÓGICA DE VISIBILIDAD PÚBLICA ─────────────────────────────────────
@@ -3109,16 +3139,6 @@ async function loadDurEditor() {
   actions.style.display = 'block';
 }
 
-function timeToMins(t) {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
-}
-function minsToTime(mins) {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-}
-
 function renderDurEditor() {
   const editor = document.getElementById('durEditor');
   editor.innerHTML = '';
@@ -3496,9 +3516,20 @@ function initAllListeners() {
   // Cerrar app — close tab or go to blank
   const bca = document.getElementById('btnCerrarApp');
   if (bca) bca.addEventListener('click', () => {
-    window.close();
-    // Fallback if window.close() is blocked (most browsers block it)
-    window.location.href = 'about:blank';
+    try { window.close(); } catch(e) {}
+    // Fallback: go back to patient view and scroll top
+    setTimeout(() => {
+      showView('patientView');
+      resetPatient();
+      window.scrollTo(0,0);
+    }, 300);
+  });
+
+  // Salir del panel personal
+  const bsp2 = document.getElementById('btnSalirPersonal');
+  if (bsp2) bsp2.addEventListener('click', () => {
+    showView('patientView');
+    window.scrollTo(0,0);
   });
 
   // Modal close buttons
