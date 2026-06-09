@@ -2933,18 +2933,11 @@ window.loadBloqueos = async () => {
     });
   } catch(e) {}
 
-  // Recalculate slots if duration overrides exist
+  // Use all slots from overrides (may include extra slots beyond base)
   if (Object.keys(blockDurOverrides).length > 0) {
-    let recalcMins = timeToMins(slots[0]);
-    const recalcSlots = [];
-    slots.forEach(() => {
-      const hora = minsToTime(recalcMins);
-      recalcSlots.push(hora);
-      const dur = blockDurOverrides[hora] || 45;
-      recalcMins += dur;
-    });
+    const overrideSlots = Object.keys(blockDurOverrides).sort();
     slots.length = 0;
-    recalcSlots.forEach(s => slots.push(s));
+    overrideSlots.forEach(s => slots.push(s));
   }
 
   S.blockSelectedSlots = [];
@@ -3531,9 +3524,39 @@ async function guardarDuraciones() {
   if (!fecha || !medicoId) return;
 
   try {
+    // Get end of day for this medico
+    const d = new Date(fecha + 'T12:00:00');
+    const dow = d.getDay();
+    const baseSlots = HORARIOS[medicoId] ? HORARIOS[medicoId].slots(dow) : [];
+    if (baseSlots.length === 0) return;
+
+    // Calculate end of day (last base slot + 45 min default)
+    const lastBase = baseSlots[baseSlots.length - 1];
+    const endMins = timeToMins(lastBase) + 45;
+
+    // Build full schedule from _durSlots, then extend to fill remaining time
+    const fullSchedule = []; // {hora, durMin}
+    let currentMins = timeToMins(window._durSlots[0].effectiveHora);
+
+    // First add all existing slots with their durations
+    window._durSlots.forEach(s => {
+      fullSchedule.push({ hora: minsToTime(currentMins), durMin: s.durMin });
+      currentMins += s.durMin;
+    });
+
+    // Then fill remaining time with 45-min slots until end of day
+    while (currentMins + 30 <= endMins) { // at least 30 min remaining
+      fullSchedule.push({ hora: minsToTime(currentMins), durMin: 45 });
+      currentMins += 45;
+    }
+
+    // Build overrides map
+    const overrides = {};
+    fullSchedule.forEach(s => { overrides[s.hora] = s.durMin; });
+
+    // Update citas with new effective times
     for (const s of window._durSlots) {
       if (s.cita && s.cita._docId) {
-        // Always update hora (effective time) and duracion
         await updateDoc(doc(window._db, 'citas', s.cita._docId), {
           hora: s.effectiveHora,
           duracion: s.durMin
@@ -3541,39 +3564,32 @@ async function guardarDuraciones() {
       }
     }
 
-    // Also save slot durations as a schedule override in Firestore
-    // so renderSlots can pick them up for patient view
-    const scheduleKey = `${fecha}_${medicoId}`;
-    const overrides = {};
-    window._durSlots.forEach(s => {
-      overrides[s.effectiveHora] = s.durMin;
-    });
-    // Store in bloqueos collection with tipo='duracion' for retrieval
-    // First delete existing duracion entries for this date/medico
+    // Delete old duracion entries and save new schedule
     const bq = query(window._blCol,
       where('fecha','==',fecha),
       where('medicoId','==',medicoId),
       where('tipo','==','duracion'));
     const bsnap = await getDocs(bq);
     for (const bd of bsnap.docs) await deleteDoc(doc(window._db,'bloqueos',bd.id));
-    // Save new duration schedule
-    if (Object.keys(overrides).length > 0) {
-      await addDoc(window._blCol, {
-        fecha, medicoId,
-        tipo: 'duracion',
-        overrides: JSON.stringify(overrides),
-        creadoEn: new Date().toISOString()
-      });
-    }
+
+    await addDoc(window._blCol, {
+      fecha, medicoId,
+      tipo: 'duracion',
+      overrides: JSON.stringify(overrides),
+      totalSlots: fullSchedule.length,
+      creadoEn: new Date().toISOString()
+    });
 
     const ci = document.getElementById('durCascadeInfo');
-    ci.textContent = '✅ Horarios guardados correctamente';
+    const added = fullSchedule.length - window._durSlots.length;
+    ci.textContent = added > 0
+      ? `✅ Guardado — se agregaron ${added} slot${added>1?'s':''} extra para completar el horario`
+      : '✅ Horarios guardados correctamente';
     ci.style.display = 'block';
-    setTimeout(() => { ci.style.display = 'none'; }, 3000);
-    // Reload editor with updated data from Firebase
+    setTimeout(() => { ci.style.display = 'none'; }, 4000);
     await loadDurEditor();
     loadAgenda();
-  } catch(e) { console.error(e); alert('Error al guardar cambios: ' + e.message); }
+  } catch(e) { console.error(e); alert('Error al guardar: ' + e.message); }
 }
 
 // ── CLEANUP OLD RECORDS ────────────────────────────────
