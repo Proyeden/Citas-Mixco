@@ -1362,7 +1362,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
       <div class="pin-error" id="pinError">PIN incorrecto. Intenta de nuevo.</div>
       <button class="btn-primary" id="btnCheckPin">Entrar</button>
       <div style="text-align:center; margin-top:12px">
-        <button class="btn-secondary" id="btnSalirPersonal" style="width:auto; padding: 8px 20px;">Cancelar</button>
+        <button class="btn-secondary" id="btnCancelarLoginView" style="width:auto; padding: 8px 20px;">Cancelar</button>
       </div>
     </div>
   </div>
@@ -2782,14 +2782,35 @@ window.loadBloqueos = async () => {
 
   const occupied = new Set();
   const blocked = new Set();
+  let blockDurOverrides = {};
   try {
     const q = query(window._col, where('fecha','==',fecha), where('medicoId','==',medicoId));
     const snap = await getDocs(q);
     snap.forEach(d => { if (d.data().estado !== 'cancelada') occupied.add(d.data().hora); });
     const bq = query(window._blCol, where('fecha','==',fecha), where('medicoId','==',medicoId));
     const bsnap = await getDocs(bq);
-    bsnap.forEach(d => blocked.add(d.data().hora));
+    bsnap.forEach(d => {
+      if (d.data().tipo === 'duracion') {
+        try { blockDurOverrides = JSON.parse(d.data().overrides); } catch(e2) {}
+      } else {
+        blocked.add(d.data().hora);
+      }
+    });
   } catch(e) {}
+
+  // Recalculate slots if duration overrides exist
+  if (Object.keys(blockDurOverrides).length > 0) {
+    let recalcMins = timeToMins(slots[0]);
+    const recalcSlots = [];
+    slots.forEach(() => {
+      const hora = minsToTime(recalcMins);
+      recalcSlots.push(hora);
+      const dur = blockDurOverrides[hora] || 45;
+      recalcMins += dur;
+    });
+    slots.length = 0;
+    recalcSlots.forEach(s => slots.push(s));
+  }
 
   S.blockSelectedSlots = [];
   const c = document.getElementById('blockSlots');
@@ -3454,13 +3475,19 @@ function initAllListeners() {
   const bcp = document.getElementById('btnCheckPin');
   if (bcp) bcp.addEventListener('click', () => checkPin());
 
-  // Salir personal
-  const bsp = document.getElementById('btnSalirPersonal');
-  if (bsp) bsp.addEventListener('click', () => showView('patientView'));
+  // Salir personal — use querySelectorAll to catch all instances
+  document.querySelectorAll('#btnSalirPersonal').forEach(btn => {
+    btn.addEventListener('click', () => {
+      showView('patientView');
+      window.scrollTo(0,0);
+    });
+  });
 
   // Cancelar login
   const bcl = document.getElementById('btnCancelarLogin');
   if (bcl) bcl.addEventListener('click', () => showView('patientView'));
+  const bclv = document.getElementById('btnCancelarLoginView');
+  if (bclv) bclv.addEventListener('click', () => showView('patientView'));
 
   // Tab switching
   document.querySelectorAll('[data-tab]').forEach(btn => {
@@ -3525,12 +3552,7 @@ function initAllListeners() {
     }, 300);
   });
 
-  // Salir del panel personal
-  const bsp2 = document.getElementById('btnSalirPersonal');
-  if (bsp2) bsp2.addEventListener('click', () => {
-    showView('patientView');
-    window.scrollTo(0,0);
-  });
+
 
   // Modal close buttons
   document.querySelectorAll('[data-closemodal]').forEach(btn => {
