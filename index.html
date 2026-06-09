@@ -1763,7 +1763,6 @@ const MEDICOS = {
 
 const HORARIOS = {
   denis: {
-    // 1=lun,2=mar,3=mie,4=jue,5=vie,6=sab
     diasSemana: [1,2,3,4,5,6],
     slots: (dow) => {
       if (dow >= 1 && dow <= 4) return generarSlots('13:00','17:00',45);
@@ -1771,7 +1770,19 @@ const HORARIOS = {
       if (dow === 6) return generarSlots('08:00','14:00',45);
       return [];
     },
-    slotsLibres: 2 // primeras N citas disponibles para pacientes sin bloqueo
+    endTime: (dow) => {
+      if (dow >= 1 && dow <= 4) return '18:00'; // max extension 6pm
+      if (dow === 5) return '16:00';
+      if (dow === 6) return '15:00';
+      return null;
+    },
+    officialEnd: (dow) => {
+      if (dow >= 1 && dow <= 4) return '17:00'; // lo que ve el paciente
+      if (dow === 5) return '15:00';
+      if (dow === 6) return '14:00';
+      return null;
+    },
+    slotsLibres: 2
   },
   nochez: {
     diasSemana: [1,2,3,4,6],
@@ -1779,6 +1790,11 @@ const HORARIOS = {
       if (dow >= 1 && dow <= 4) return ['16:00'];
       if (dow === 6) return ['08:00','09:00'];
       return [];
+    },
+    endTime: (dow) => {
+      if (dow >= 1 && dow <= 4) return '17:00';
+      if (dow === 6) return '10:00';
+      return null;
     },
     slotsLibres: 2
   },
@@ -1789,6 +1805,18 @@ const HORARIOS = {
       if (dow === 5) return generarSlots('09:00','15:00',45);
       if (dow === 6) return generarSlots('08:00','14:00',45);
       return [];
+    },
+    endTime: (dow) => {
+      if (dow >= 1 && dow <= 4) return '18:00';
+      if (dow === 5) return '16:00';
+      if (dow === 6) return '15:00';
+      return null;
+    },
+    officialEnd: (dow) => {
+      if (dow >= 1 && dow <= 4) return '17:00';
+      if (dow === 5) return '15:00';
+      if (dow === 6) return '14:00';
+      return null;
     },
     slotsLibres: 2
   }
@@ -2319,6 +2347,24 @@ async function renderSlots() {
     if (!occupied.has(slot) && !adminBlocked.has(slot)) {
       publicVisible.add(slot);
     }
+  }
+
+  // ── FILTRAR SLOTS QUE PASAN DEL HORARIO OFICIAL (paciente no los ve) ──
+  // Solo mostrar slots cuya duración completa cabe antes del cierre oficial
+  const officialEndStr = HORARIOS[mid].officialEnd ? HORARIOS[mid].officialEnd(ourDow) : null;
+  if (officialEndStr) {
+    const officialEndMins = timeToMins(officialEndStr);
+    const filtered = allSlots.filter(s => {
+      const slotMins = timeToMins(s);
+      // Get this slot's duration from overrides or default 45
+      const slotDur = Object.keys(duracionOverrides).length > 0
+        ? (duracionOverrides[s] || 45)
+        : 45;
+      // Slot must START before official end AND END before/at official end
+      return slotMins < officialEndMins && slotMins + slotDur <= officialEndMins;
+    });
+    allSlots.length = 0;
+    filtered.forEach(s => allSlots.push(s));
   }
 
   // ── BLOQUEO AUTOMÁTICO DE SLOTS PASADOS (15 min) ─────────────────────
@@ -3530,24 +3576,31 @@ async function guardarDuraciones() {
     const baseSlots = HORARIOS[medicoId] ? HORARIOS[medicoId].slots(dow) : [];
     if (baseSlots.length === 0) return;
 
-    // Calculate end of day (last base slot + 45 min default)
-    const lastBase = baseSlots[baseSlots.length - 1];
-    const endMins = timeToMins(lastBase) + 45;
+    // Get real end time from HORARIOS endTime function
+    const endTimeStr = HORARIOS[medicoId].endTime ? HORARIOS[medicoId].endTime(dow) : null;
+    const realEndMins = endTimeStr ? timeToMins(endTimeStr) : timeToMins(baseSlots[baseSlots.length-1]) + 45;
 
     // Build full schedule from _durSlots, then extend to fill remaining time
-    const fullSchedule = []; // {hora, durMin}
+    const fullSchedule = [];
     let currentMins = timeToMins(window._durSlots[0].effectiveHora);
 
-    // First add all existing slots with their durations
+    // Add all existing slots with their edited durations
     window._durSlots.forEach(s => {
       fullSchedule.push({ hora: minsToTime(currentMins), durMin: s.durMin });
       currentMins += s.durMin;
     });
 
-    // Then fill remaining time with 45-min slots until end of day
-    while (currentMins + 30 <= endMins) { // at least 30 min remaining
-      fullSchedule.push({ hora: minsToTime(currentMins), durMin: 45 });
-      currentMins += 45;
+    // Fill remaining time — only add slots that START before officialEnd
+    const officialEndMins = HORARIOS[medicoId].officialEnd
+      ? timeToMins(HORARIOS[medicoId].officialEnd(dow))
+      : realEndMins;
+
+    while (currentMins < officialEndMins && currentMins + 15 <= realEndMins) {
+      // Slot must START before officialEnd (5pm)
+      const remaining = realEndMins - currentMins;
+      const dur = remaining >= 45 ? 45 : remaining >= 30 ? 30 : 15;
+      fullSchedule.push({ hora: minsToTime(currentMins), durMin: dur });
+      currentMins += dur;
     }
 
     // Build overrides map
