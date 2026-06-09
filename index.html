@@ -1683,14 +1683,17 @@ document.getElementById('pwa-manifest').href = manifestURL;
       <h3 style="margin-bottom:10px" id="modalFuturoTitle">Programación no disponible</h3>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6" id="futuroMsg"></p>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+    <p id="futuroIntro" style="font-size:13px;color:var(--text-muted);text-align:center;margin:12px 0 12px;line-height:1.5"></p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
       <button class="btn-opcion" id="btnAgendarHoy">
         <div class="btn-opcion-icon">📅</div>
-        <div class="btn-opcion-label" id="btnAgendarHoyLabel">Ver otro día disponible</div>
+        <div class="btn-opcion-label">Ver el día más cercano disponible</div>
+        <div id="btnAgendarHoyDesc" style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.3;font-weight:400">Agenda tu cita en el próximo horario disponible ahora mismo</div>
       </button>
       <button class="btn-opcion btn-opcion-espera" id="btnEsperaFromFuturo">
         <div class="btn-opcion-icon">🔔</div>
-        <div class="btn-opcion-label">Lista de espera para hoy</div>
+        <div class="btn-opcion-label" id="btnEsperaLabel">Quiero ese día específico</div>
+        <div id="btnEsperaDesc" style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.3;font-weight:400">Te avisamos cuando confirmemos la agenda de ese día</div>
       </button>
     </div>
     <button class="btn-secondary" data-closemodal="modalFuturo" style="width:100%;margin-top:10px">Cerrar</button>
@@ -2003,23 +2006,32 @@ function isAvailableDay(year, month, day) {
 window._firstAvailableDate = null;
 
 async function isDayFull(dateStr, mid) {
-  // Returns true if all slots for this medico/date are taken
+  // Returns: false | 'real' (real patients) | 'estrategia' (blocked by strategy)
   const d = new Date(dateStr + 'T12:00:00');
   const dow = d.getDay();
   const allSlots = HORARIOS[mid] ? HORARIOS[mid].slots(dow) : [];
-  if (allSlots.length === 0) return true;
+  if (allSlots.length === 0) return 'real';
 
   const occupied = new Set();
+  const estrategiaSlots = new Set();
   try {
     const q = query(window._col, where('fecha','==',dateStr), where('medicoId','==',mid));
     const snap = await getDocs(q);
     snap.forEach(doc => { if (doc.data().estado !== 'cancelada') occupied.add(doc.data().hora); });
     const bq = query(window._blCol, where('fecha','==',dateStr), where('medicoId','==',mid));
     const bsnap = await getDocs(bq);
-    bsnap.forEach(doc => occupied.add(doc.data().hora));
+    bsnap.forEach(doc => {
+      occupied.add(doc.data().hora);
+      if (doc.data().tipo === 'estrategia') estrategiaSlots.add(doc.data().hora);
+    });
   } catch(e) {}
 
-  return allSlots.every(s => occupied.has(s));
+  if (!allSlots.every(s => occupied.has(s))) return false; // not full
+
+  // Full — check if mostly strategy blocks or real patients
+  const realCount = allSlots.filter(s => occupied.has(s) && !estrategiaSlots.has(s)).length;
+  const estratCount = estrategiaSlots.size;
+  return estratCount > realCount ? 'estrategia' : 'real';
 }
 
 async function findFirstAvailableDate() {
@@ -2120,17 +2132,33 @@ function renderCalendar() {
         const fechaStr = `${y}-${String(m2+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const mid = getMedicoId();
         if (mid) {
-          const full = await isDayFull(fechaStr, mid);
-          if (full) {
-            // Day is full → go to espera
+          const fullType = await isDayFull(fechaStr, mid);
+          if (fullType) {
             const dateLabel = date.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
-            // Change modal title and message for full day
+            const isEstrategia = fullType === 'estrategia';
+
+            document.getElementById('modalFuturoTitle').textContent =
+              isEstrategia ? 'Agenda en planificación' : 'Agenda completa';
+
             document.getElementById('futuroMsg').innerHTML =
-              `No hay citas disponibles para el<br><strong style="color:var(--navy);font-size:18px;display:block;margin:8px 0;text-transform:capitalize">${dateLabel}</strong>`;
+              `<strong style="color:var(--navy);font-size:18px;display:block;margin:8px 0;text-transform:capitalize">${dateLabel}</strong>`;
+
+            const intro = document.getElementById('futuroIntro');
+            const espeLabel = document.getElementById('btnEsperaLabel');
+            const espeDesc = document.getElementById('btnEsperaDesc');
+            if (intro) intro.textContent = isEstrategia
+              ? 'Aún no hemos confirmado los horarios para ese día. Tienes dos opciones:'
+              : 'No quedan espacios para ese día. Tienes dos opciones:';
+            if (espeLabel) espeLabel.textContent = isEstrategia
+              ? 'Quiero ese día específico'
+              : 'Quiero ese día si hay cancelación';
+            if (espeDesc) espeDesc.textContent = isEstrategia
+              ? 'Te avisamos cuando confirmemos la agenda de ese día'
+              : 'Te avisamos de inmediato si alguien cancela';
+
             document.getElementById('esperaFecha').value = fechaStr;
-            // Update modal to show "other day" option
-            document.getElementById('modalFuturoTitle').textContent = 'Agenda completa';
-            document.getElementById('btnAgendarHoy').style.display = window._firstAvailableDate && window._firstAvailableDate !== fechaStr ? 'inline-block' : 'none';
+            document.getElementById('btnAgendarHoy').style.display =
+              window._firstAvailableDate && window._firstAvailableDate !== fechaStr ? 'inline-block' : 'none';
             document.getElementById('btnAgendarHoyLabel').textContent =
               window._firstAvailableDate
                 ? `📋 Ver disponibilidad del ${new Date(window._firstAvailableDate+'T12:00:00').toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}`
@@ -3080,7 +3108,13 @@ window.showFutureModal = (fechaLabel) => {
   const msg = document.getElementById('futuroMsg');
   if (msg) {
     const dia = fechaLabel === 'mañana' ? 'mañana' : fechaLabel;
-    msg.innerHTML = `Aún estamos revisando la agenda del<br><strong style="color:var(--navy);font-size:18px;display:block;margin:8px 0;text-transform:capitalize">${dia}</strong>Por favor deja tus datos y alguien de nuestro equipo te contactará para gestionar el día que más te convenga para tu cita.`;
+    msg.innerHTML = `<strong style="color:var(--navy);font-size:18px;display:block;margin:8px 0;text-transform:capitalize">${dia}</strong>`;
+    const intro = document.getElementById('futuroIntro');
+    const espeLabel = document.getElementById('btnEsperaLabel');
+    const espeDesc = document.getElementById('btnEsperaDesc');
+    if (intro) intro.textContent = 'Aún no hemos confirmado los horarios para ese día. Tienes dos opciones:';
+    if (espeLabel) espeLabel.textContent = 'Quiero ese día específico';
+    if (espeDesc) espeDesc.textContent = 'Te avisamos cuando confirmemos la agenda de ese día';
   }
   openModal('modalFuturo');
 };
