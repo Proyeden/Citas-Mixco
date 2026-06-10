@@ -2037,7 +2037,7 @@ async function isDayFull(dateStr, mid) {
   // Returns: false | 'real' (real patients) | 'estrategia' (blocked by strategy)
   const d = new Date(dateStr + 'T12:00:00');
   const dow = d.getDay();
-  const allSlots = HORARIOS[mid] ? HORARIOS[mid].slots(dow) : [];
+  let allSlots = HORARIOS[mid] ? HORARIOS[mid].slots(dow) : [];
   if (allSlots.length === 0) return 'real';
 
   const occupied = new Set();
@@ -2943,7 +2943,7 @@ window.loadBloqueos = async () => {
   const d = new Date(fecha+'T12:00:00');
   const dow = d.getDay();
   const ourDow = dow===0?0:dow;
-  const slots = HORARIOS[medicoId].slots(ourDow);
+  let slots = HORARIOS[medicoId].slots(ourDow);
 
   const occupied = new Set();
   const blocked = new Set();
@@ -3442,7 +3442,7 @@ async function loadDurEditor() {
 
   const d = new Date(fecha + 'T12:00:00');
   const dow = d.getDay();
-  const allSlots = HORARIOS[medicoId] ? HORARIOS[medicoId].slots(dow) : [];
+  let allSlots = HORARIOS[medicoId] ? HORARIOS[medicoId].slots(dow) : [];
 
   if (allSlots.length === 0) {
     editor.innerHTML = '<p style="color:var(--text-muted);font-size:14px;padding:16px 0">No hay horario para este día</p>';
