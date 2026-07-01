@@ -1750,6 +1750,7 @@ window._db = db;
 window._col = collection(db, 'citas');
 window._blCol = collection(db, 'bloqueos');
 window._espCol = collection(db, 'lista_espera');
+window._slotsCol = collection(db, 'slots_disponibles'); // publicados por la agenda
 window._fbReady = true;
 
 // ── DATA ──────────────────────────────────────────────
@@ -1769,22 +1770,19 @@ const HORARIOS = {
   denis: {
     diasSemana: [1,2,3,4,5,6],
     slots: (dow) => {
-      // Lun-Jue: Mixco 13:00-17:00 (slots de 45 min)
       if (dow >= 1 && dow <= 4) return generarSlots('13:00','17:00',45);
-      // Vie: Mixco 09:00-15:00
       if (dow === 5) return generarSlots('09:00','15:00',45);
-      // Sáb: Mixco 08:00-14:00
       if (dow === 6) return generarSlots('08:00','14:00',45);
       return [];
     },
     endTime: (dow) => {
-      if (dow >= 1 && dow <= 4) return '17:00';
-      if (dow === 5) return '15:00';
-      if (dow === 6) return '14:00';
+      if (dow >= 1 && dow <= 4) return '18:00'; // max extension 6pm
+      if (dow === 5) return '16:00';
+      if (dow === 6) return '15:00';
       return null;
     },
     officialEnd: (dow) => {
-      if (dow >= 1 && dow <= 4) return '17:00';
+      if (dow >= 1 && dow <= 4) return '17:00'; // lo que ve el paciente
       if (dow === 5) return '15:00';
       if (dow === 6) return '14:00';
       return null;
@@ -2059,50 +2057,30 @@ window._firstAvailableDate = null;
 window._todayIsFull = false;
 
 async function isDayFull(dateStr, mid) {
-  // Returns: false | 'real' (real patients) | 'estrategia' (blocked by strategy)
-  const d = new Date(dateStr + 'T12:00:00');
-  const dow = d.getDay();
-  let allSlots = HORARIOS[mid] ? HORARIOS[mid].slots(dow) : [];
-  if (allSlots.length === 0) return 'real';
+  // Returns: false | 'real' | 'estrategia'
+  // Lee los slots publicados por la agenda. Si no hay slots → día sin agenda → full.
+  // Si todos los slots publicados tienen cita → full.
+  let allSlots = [];
+  try {
+    const sq = query(window._slotsCol,
+      where('fecha','==',dateStr),
+      where('medicoId','==',mid),
+      where('disponible','==',true));
+    const ssnap = await getDocs(sq);
+    allSlots = ssnap.docs.map(d => d.data().hora);
+  } catch(e) {}
+
+  if (allSlots.length === 0) return 'real'; // sin slots publicados = sin disponibilidad
 
   const occupied = new Set();
-  const estrategiaSlots = new Set();
   try {
     const q = query(window._col, where('fecha','==',dateStr), where('medicoId','==',mid));
     const snap = await getDocs(q);
     snap.forEach(doc => { if (doc.data().estado !== 'cancelada') occupied.add(doc.data().hora); });
-    const bq = query(window._blCol, where('fecha','==',dateStr), where('medicoId','==',mid));
-    const bsnap = await getDocs(bq);
-    const rangosBloqueo = [];
-    bsnap.forEach(doc => {
-      const data = doc.data();
-      occupied.add(data.hora);
-      if (data.tipo === 'estrategia') estrategiaSlots.add(data.hora);
-      // Guardar rango para cubrir slots que no coincidan exactamente
-      const ini = timeToMins(data.hora);
-      const dur = data.slotMin || 45;
-      rangosBloqueo.push({ ini, fin: ini + dur, esEstrategia: data.tipo === 'estrategia' });
-    });
-    // Marcar slots cubiertos por rango
-    if (rangosBloqueo.length > 0) {
-      allSlots.forEach(slot => {
-        const slotMin = timeToMins(slot);
-        rangosBloqueo.forEach(r => {
-          if (slotMin >= r.ini && slotMin < r.fin) {
-            occupied.add(slot);
-            if (r.esEstrategia) estrategiaSlots.add(slot);
-          }
-        });
-      });
-    }
   } catch(e) {}
 
-  if (!allSlots.every(s => occupied.has(s))) return false; // not full
-
-  // Full — check if mostly strategy blocks or real patients
-  const realCount = allSlots.filter(s => occupied.has(s) && !estrategiaSlots.has(s)).length;
-  const estratCount = estrategiaSlots.size;
-  return estratCount > realCount ? 'estrategia' : 'real';
+  if (!allSlots.every(s => occupied.has(s))) return false; // hay slots libres
+  return 'real'; // todos ocupados
 }
 
 async function findFirstAvailableDate() {
@@ -2332,18 +2310,40 @@ async function renderSlots() {
     return;
   }
 
-  const h = HORARIOS[mid];
-  const dow = S.selectedDate.getDay();
-  const ourDow = dow === 0 ? 0 : dow;
-  let allSlots = h.slots(ourDow);
+  // ── LEER SLOTS DESDE LA AGENDA (slots_disponibles) ───────────────────
+  // La agenda calcula los huecos reales y los publica en Firebase.
+  // El sistema de citas solo muestra lo que la agenda dice que está libre.
+  let allSlots = [];
 
   const dateStr = dateToStr(S.selectedDate);
-  const occupied = new Set();
-  const adminBlocked = new Set();
-  let duracionOverrides = {}; // declared outside try so always accessible
 
   try {
-    // Query por medicoId
+    const sq = query(window._slotsCol,
+      where('fecha','==',dateStr),
+      where('medicoId','==',mid),
+      where('disponible','==',true));
+    const ssnap = await getDocs(sq);
+    const slotsPublicados = ssnap.docs
+      .map(d => ({ hora: d.data().hora, durMin: d.data().durMin || 45 }))
+      .sort((a,b) => a.hora.localeCompare(b.hora));
+    allSlots = slotsPublicados.map(s => s.hora);
+  } catch(e) { console.log('Error leyendo slots_disponibles:', e); }
+
+  // Si no hay slots publicados, mostrar mensaje
+  if(allSlots.length === 0){
+    sec.style.display = 'block';
+    grid.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;font-size:14px">No hay horarios disponibles para este día.<br>Si necesitás una cita urgente, contactanos directamente.</p>';
+    document.getElementById('slotsTitle').textContent = `Horarios — ${S.selectedDate.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}`;
+    document.getElementById('btnStep3').disabled = true;
+    const banner = document.getElementById('esperaBannerCTA');
+    if(banner) banner.style.display = 'block';
+    return;
+  }
+
+  // Leer citas ya reservadas
+  const occupied = new Set();
+  const adminBlocked = new Set();
+  try {
     const q = query(window._col,
       where('fecha','==',dateStr),
       where('medicoId','==',mid));
@@ -2351,95 +2351,16 @@ async function renderSlots() {
     snap.forEach(d => {
       if (d.data().estado !== 'cancelada') occupied.add(d.data().hora);
     });
+  } catch(e) { console.log('Firebase error citas:', e); }
 
-    const bq = query(window._blCol,
-      where('fecha','==',dateStr),
-      where('medicoId','==',mid));
-    const bsnap = await getDocs(bq);
-
-    // Construir lista de rangos bloqueados (hora inicio + duración en minutos)
-    // para poder bloquear slots que caigan DENTRO de ese rango, no solo el exacto.
-    // Esto permite que un bloqueo de la agenda (ej. 13:00 por 45 min) cubra
-    // el slot 13:00 aunque el sistema lo genere como 13:00 exacto.
-    const rangosBloqueo = []; // [{ini, fin}] en minutos
-
-    bsnap.forEach(d => {
-      const data = d.data();
-      const tipo = data.tipo || 'admin';
-      if (tipo === 'directo') {
-        const ini = timeToMins(data.hora);
-        const dur = data.slotMin || 45;
-        rangosBloqueo.push({ ini, fin: ini + dur });
-        occupied.add(data.hora); // compatibilidad con hora exacta
-      } else if (tipo === 'duracion') {
-        if (data.overrides) {
-          try { duracionOverrides = JSON.parse(data.overrides); } catch(e2) {}
-        }
-      } else {
-        adminBlocked.add(data.hora);
-      }
-    });
-
-    // Marcar como ocupado cualquier slot de la agenda que caiga dentro de un rango bloqueado
-    if (rangosBloqueo.length > 0) {
-      allSlots.forEach(slot => {
-        const slotMin = timeToMins(slot);
-        const cubierto = rangosBloqueo.some(r => slotMin >= r.ini && slotMin < r.fin);
-        if (cubierto) occupied.add(slot);
-      });
-    }
-  } catch(e) { console.log('Firebase error:', e); }
-
-  // Rebuild allSlots with duration overrides if any
-  if (Object.keys(duracionOverrides).length > 0) {
-    const recalcSlots = [];
-    let recalcMins = timeToMins(allSlots[0]);
-    allSlots.forEach(() => {
-      const hora = minsToTime(recalcMins);
-      recalcSlots.push(hora);
-      recalcMins += (duracionOverrides[hora] || 45);
-    });
-    allSlots = recalcSlots;
-  }
-
-  // ── LÓGICA DE VISIBILIDAD PÚBLICA ─────────────────────────────────────
-  // Regla simple: siempre mostrar los 2 slots más tempranos del día
-  // que estén libres (no ocupados por cita real ni bloqueados admin).
-  // Los pacientes reales "anclan" la agenda liberando el slot siguiente
-  // al último ocupado, si aún no hay 2 slots visibles antes de él.
-  //
-  // Ejemplo:
-  //   Libre: 1:00, 1:45, 2:30 → muestra 1:00 y 1:45
-  //   Paciente real en 1:45, libre 1:00 y 2:30 → muestra 1:00 y 2:30
-  //   Paciente real en 3:15, libre 1:00 y 1:45 → muestra 1:00 y 1:45
-  //   Todo libre hasta 4:00 → muestra 1:00 y 1:45 (los más tempranos)
-
+  // Mostrar máximo 2 slots libres al paciente
   const publicVisible = new Set();
-
-  // Recorrer todos los slots en orden cronológico
-  // Un slot es "elegible" si: no está ocupado (cita real) y no está admin-bloqueado
-  // Tomamos simplemente los primeros 2 elegibles
   for (let i = 0; i < allSlots.length && publicVisible.size < 2; i++) {
     const slot = allSlots[i];
-    if (!occupied.has(slot) && !adminBlocked.has(slot)) {
-      publicVisible.add(slot);
-    }
+    if (!occupied.has(slot)) publicVisible.add(slot);
   }
 
-  // ── FILTRAR SLOTS — solo los que EMPIEZAN antes del horario oficial ──
-  // Slots que empiezan antes de las 5pm son visibles aunque terminen después
-  const officialEndStr = HORARIOS[mid] && HORARIOS[mid].officialEnd
-    ? HORARIOS[mid].officialEnd(ourDow) : null;
-  if (officialEndStr) {
-    const officialEndMins = timeToMins(officialEndStr);
-    const filtered = allSlots.filter(s => timeToMins(s) < officialEndMins);
-    if (filtered.length > 0) { // only filter if result is non-empty
-      allSlots.length = 0;
-      filtered.forEach(s => allSlots.push(s));
-    }
-  }
-
-  // ── BLOQUEO AUTOMÁTICO DE SLOTS PASADOS (15 min) ─────────────────────
+  // Bloquear slots pasados (15 min de gracia)
   const now = new Date();
   const todayStr = dateToStr(now);
   const isToday = dateStr === todayStr;
@@ -2447,25 +2368,18 @@ async function renderSlots() {
     const nowMins = now.getHours() * 60 + now.getMinutes();
     allSlots.forEach(slot => {
       const slotMins = timeToMins(slot);
-      // If slot started more than 15 minutes ago and is still free → auto-block
-      if (nowMins >= slotMins + 15 && !occupied.has(slot) && !adminBlocked.has(slot)) {
-        adminBlocked.add(slot); // treat as blocked
-        publicVisible.delete(slot); // remove from visible
+      if (nowMins >= slotMins + 15 && !occupied.has(slot)) {
+        adminBlocked.add(slot);
+        publicVisible.delete(slot);
       }
     });
   }
 
-  // ── RENDER CON APARIENCIA DE AGENDA SATURADA ──────────────────────────
+  // Render
   grid.innerHTML = '';
-
-  // Mostrar TODOS los slots del día — los no disponibles aparecen ocupados
-  // Solo los de publicVisible están realmente disponibles
   allSlots.forEach(slot => {
     const div = document.createElement('div');
     const isAvailable = publicVisible.has(slot);
-    const isReallyOccupied = occupied.has(slot);
-    const isAdminBlocked = adminBlocked.has(slot);
-
     if (isAvailable) {
       div.className = 'slot slot-available-highlight';
       div.textContent = formatTime(slot);
@@ -2476,17 +2390,16 @@ async function renderSlots() {
         document.getElementById('btnStep3').disabled = false;
       });
     } else {
-      // Aparece ocupado al paciente (sin importar la razón real)
       div.className = 'slot slot-visually-occupied';
       div.innerHTML = `<span>${formatTime(slot)}</span><small>Ocupado</small>`;
     }
     grid.appendChild(div);
   });
 
-  // Contador de disponibles
   const disponibles = publicVisible.size;
   const total = allSlots.length;
   const titulo = S.selectedDate.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('slotsTitle').textContent = `Horarios — ${titulo}`;
   document.getElementById('slotsTitle').textContent = `Horarios — ${titulo}`;
 
   // Mensaje de urgencia
