@@ -1769,19 +1769,22 @@ const HORARIOS = {
   denis: {
     diasSemana: [1,2,3,4,5,6],
     slots: (dow) => {
+      // Lun-Jue: Mixco 13:00-17:00 (slots de 45 min)
       if (dow >= 1 && dow <= 4) return generarSlots('13:00','17:00',45);
+      // Vie: Mixco 09:00-15:00
       if (dow === 5) return generarSlots('09:00','15:00',45);
+      // Sáb: Mixco 08:00-14:00
       if (dow === 6) return generarSlots('08:00','14:00',45);
       return [];
     },
     endTime: (dow) => {
-      if (dow >= 1 && dow <= 4) return '18:00'; // max extension 6pm
-      if (dow === 5) return '16:00';
-      if (dow === 6) return '15:00';
+      if (dow >= 1 && dow <= 4) return '17:00';
+      if (dow === 5) return '15:00';
+      if (dow === 6) return '14:00';
       return null;
     },
     officialEnd: (dow) => {
-      if (dow >= 1 && dow <= 4) return '17:00'; // lo que ve el paciente
+      if (dow >= 1 && dow <= 4) return '17:00';
       if (dow === 5) return '15:00';
       if (dow === 6) return '14:00';
       return null;
@@ -2070,10 +2073,28 @@ async function isDayFull(dateStr, mid) {
     snap.forEach(doc => { if (doc.data().estado !== 'cancelada') occupied.add(doc.data().hora); });
     const bq = query(window._blCol, where('fecha','==',dateStr), where('medicoId','==',mid));
     const bsnap = await getDocs(bq);
+    const rangosBloqueo = [];
     bsnap.forEach(doc => {
-      occupied.add(doc.data().hora);
-      if (doc.data().tipo === 'estrategia') estrategiaSlots.add(doc.data().hora);
+      const data = doc.data();
+      occupied.add(data.hora);
+      if (data.tipo === 'estrategia') estrategiaSlots.add(data.hora);
+      // Guardar rango para cubrir slots que no coincidan exactamente
+      const ini = timeToMins(data.hora);
+      const dur = data.slotMin || 45;
+      rangosBloqueo.push({ ini, fin: ini + dur, esEstrategia: data.tipo === 'estrategia' });
     });
+    // Marcar slots cubiertos por rango
+    if (rangosBloqueo.length > 0) {
+      allSlots.forEach(slot => {
+        const slotMin = timeToMins(slot);
+        rangosBloqueo.forEach(r => {
+          if (slotMin >= r.ini && slotMin < r.fin) {
+            occupied.add(slot);
+            if (r.esEstrategia) estrategiaSlots.add(slot);
+          }
+        });
+      });
+    }
   } catch(e) {}
 
   if (!allSlots.every(s => occupied.has(s))) return false; // not full
@@ -2335,18 +2356,38 @@ async function renderSlots() {
       where('fecha','==',dateStr),
       where('medicoId','==',mid));
     const bsnap = await getDocs(bq);
+
+    // Construir lista de rangos bloqueados (hora inicio + duración en minutos)
+    // para poder bloquear slots que caigan DENTRO de ese rango, no solo el exacto.
+    // Esto permite que un bloqueo de la agenda (ej. 13:00 por 45 min) cubra
+    // el slot 13:00 aunque el sistema lo genere como 13:00 exacto.
+    const rangosBloqueo = []; // [{ini, fin}] en minutos
+
     bsnap.forEach(d => {
-      const tipo = d.data().tipo || 'admin';
+      const data = d.data();
+      const tipo = data.tipo || 'admin';
       if (tipo === 'directo') {
-        occupied.add(d.data().hora);
+        const ini = timeToMins(data.hora);
+        const dur = data.slotMin || 45;
+        rangosBloqueo.push({ ini, fin: ini + dur });
+        occupied.add(data.hora); // compatibilidad con hora exacta
       } else if (tipo === 'duracion') {
-        if (d.data().overrides) {
-          try { duracionOverrides = JSON.parse(d.data().overrides); } catch(e2) {}
+        if (data.overrides) {
+          try { duracionOverrides = JSON.parse(data.overrides); } catch(e2) {}
         }
       } else {
-        adminBlocked.add(d.data().hora);
+        adminBlocked.add(data.hora);
       }
     });
+
+    // Marcar como ocupado cualquier slot de la agenda que caiga dentro de un rango bloqueado
+    if (rangosBloqueo.length > 0) {
+      allSlots.forEach(slot => {
+        const slotMin = timeToMins(slot);
+        const cubierto = rangosBloqueo.some(r => slotMin >= r.ini && slotMin < r.fin);
+        if (cubierto) occupied.add(slot);
+      });
+    }
   } catch(e) { console.log('Firebase error:', e); }
 
   // Rebuild allSlots with duration overrides if any
