@@ -2011,9 +2011,25 @@ window.selectPrimeraVisita = (esPrimera) => {
   // Price shown only at confirmation — not here
   const now = new Date();
   S.calYear = now.getFullYear(); S.calMonth = now.getMonth();
-  // Find first available date before rendering calendar
+  // Find first available date before rendering calendar.
+  // If today is full, jump automatically to the first day with real availability.
   findFirstAvailableDate().then(() => {
-    renderCalendar();
+    const todayStr = dateToStr(new Date());
+    if (window._firstAvailableDate && window._firstAvailableDate !== todayStr) {
+      // Today is full — navigate calendar to the first available month/day
+      const first = new Date(window._firstAvailableDate + 'T12:00:00');
+      S.calYear  = first.getFullYear();
+      S.calMonth = first.getMonth();
+      renderCalendar();
+      // Auto-select that day so slots appear immediately
+      setTimeout(() => {
+        selectDate(first.getFullYear(), first.getMonth(), first.getDate());
+        const sec = document.getElementById('slotsSection');
+        if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 400);
+    } else {
+      renderCalendar();
+    }
   });
   // Small delay so user sees selection animation before advancing
   setTimeout(() => goStep(3), 350);
@@ -2036,6 +2052,8 @@ function isAvailableDay(year, month, day) {
 
 // Cache: first available date found (today or next open day)
 window._firstAvailableDate = null;
+// Cache: whether today is full (set by findFirstAvailableDate)
+window._todayIsFull = false;
 
 async function isDayFull(dateStr, mid) {
   // Returns: false | 'real' (real patients) | 'estrategia' (blocked by strategy)
@@ -2067,12 +2085,16 @@ async function isDayFull(dateStr, mid) {
 }
 
 async function findFirstAvailableDate() {
-  // Find first date (from today) that has free slots
-  // Search up to 30 days ahead
+  // Find first date (from today) that has free slots.
+  // Also sets window._todayIsFull so isDayBookable can use it synchronously.
+  // Search up to 30 days ahead.
   const mid = getMedicoId();
   if (!mid) return null;
 
   const now = new Date();
+  const todayStr = dateToStr(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+  window._todayIsFull = false;
+
   for (let i = 0; i <= 30; i++) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
     const dow = d.getDay();
@@ -2080,6 +2102,7 @@ async function findFirstAvailableDate() {
     if (!HORARIOS[mid].diasSemana.includes(dow)) continue;
     const dateStr = dateToStr(d);
     const full = await isDayFull(dateStr, mid);
+    if (i === 0 && full) window._todayIsFull = true; // today is full
     if (!full) {
       window._firstAvailableDate = dateStr;
       return dateStr;
@@ -2104,8 +2127,11 @@ function isDayBookable(year, month, day) {
   const targetStr = dateToStr(target);
   const todayStr = dateToStr(today);
 
-  // Today is always available (for booking if slots exist)
-  if (target.getTime() === today.getTime()) return 'available';
+  // Today: available only if NOT full. If full, treat as 'future' so
+  // the calendar highlights the first real available day instead.
+  if (target.getTime() === today.getTime()) {
+    return window._todayIsFull ? 'future' : 'available';
+  }
 
   // If this day is the first available date found → open it
   if (window._firstAvailableDate && targetStr === window._firstAvailableDate && targetStr !== todayStr) {
