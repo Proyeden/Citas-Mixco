@@ -2071,7 +2071,7 @@ async function isDayFull(dateStr, mid) {
   try {
     const q = query(window._col, where('fecha','==',dateStr), where('medicoId','==',mid));
     const snap = await getDocs(q);
-    snap.forEach(doc => { if (doc.data().estado !== 'cancelada') occupied.add(doc.data().hora); });
+    snap.forEach(doc => { const c=doc.data(); if (c.estado !== 'cancelada' && c.clinica !== 'sancristobal') occupied.add(c.hora); });
   } catch(e) {}
   if (!allSlots.every(s => occupied.has(s))) return false;
   return 'real';
@@ -2343,7 +2343,7 @@ async function renderSlots() {
       where('medicoId','==',mid));
     const snap = await getDocs(q);
     snap.forEach(d => {
-      if (d.data().estado !== 'cancelada') occupied.add(d.data().hora);
+      if (d.data().estado !== 'cancelada' && d.data().clinica !== 'sancristobal') occupied.add(d.data().hora);
     });
   } catch(e) { console.log('Firebase error citas:', e); }
 
