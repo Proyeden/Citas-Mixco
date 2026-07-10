@@ -1717,6 +1717,10 @@ document.getElementById('pwa-manifest').href = manifestURL;
       <label>¿Qué fecha te conviene más?</label>
       <input type="date" id="esperaFecha" />
     </div>
+    <div class="form-group">
+      <label>¿Qué horario prefieres? <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+      <div id="esperaHoraGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn-secondary" data-closemodal="modalEspera">Cancelar</button>
       <button class="btn-primary" id="btnGuardarEspera">Registrarme →</button>
@@ -3279,22 +3283,109 @@ window.loadEspera = async (filtro = 'todas') => {
   }
 };
 
+// Poblar el selector de horario preferido en lista de espera
+let _esperaHoraSel = null;
+function poblarEsperaHoras() {
+  const grid = document.getElementById('esperaHoraGrid');
+  if (!grid) return;
+  _esperaHoraSel = null;
+  const mid = getMedicoId();
+
+  // Psicología (o cualquier servicio sin horarios fijos) → franjas simples
+  const esFranjaSimple = (S.especialidad === 'psicologia' || mid === 'pamela');
+
+  grid.innerHTML = '';
+  let opts;
+  if (esFranjaSimple) {
+    opts = [
+      { v: 'Mañana', label: '🌅 Mañana' },
+      { v: 'Tarde', label: '☀️ Tarde' },
+      { v: 'Cualquier hora', label: 'Cualquiera' }
+    ];
+  } else {
+    let dow = 3;
+    const fechaInput = document.getElementById('esperaFecha').value;
+    if (fechaInput) { const d = new Date(fechaInput + 'T12:00:00'); dow = d.getDay(); }
+    let horas = [];
+    try {
+      const h = HORARIOS[mid];
+      if (h && h.slots) horas = h.slots(dow) || [];
+    } catch(e) {}
+    if (horas.length === 0) {
+      try { horas = HORARIOS[mid].slots(3) || []; } catch(e) {}
+    }
+    opts = [{v:'Cualquier hora', label:'Cualquiera'}].concat(horas.map(hh => ({v:hh, label:formatTime(hh)})));
+  }
+
+  opts.forEach(o => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = o.label;
+    btn.style.cssText = 'padding:9px 4px;border:2px solid var(--border);border-radius:9px;background:var(--cream);color:var(--navy);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s';
+    btn.addEventListener('click', () => {
+      grid.querySelectorAll('button').forEach(b => {
+        b.style.borderColor = 'var(--border)'; b.style.background = 'var(--cream)'; b.style.color = 'var(--navy)';
+      });
+      btn.style.borderColor = 'var(--celeste-dark)';
+      btn.style.background = 'linear-gradient(135deg,#1A6B8A,#2196C4)';
+      btn.style.color = '#fff';
+      _esperaHoraSel = o.v;
+    });
+    grid.appendChild(btn);
+  });
+}
+window.poblarEsperaHoras = poblarEsperaHoras;
+
 window.guardarEspera = async () => {
   const nombre = document.getElementById('esperaNombre').value.trim();
   const tel = document.getElementById('esperaTel').value.trim();
   const fecha = document.getElementById('esperaFecha').value;
+  const horaPref = _esperaHoraSel;
   if (!nombre || !tel) { alert('Por favor ingresa tu nombre y teléfono'); return; }
+
+  // Formatear fecha y hora para el mensaje (nunca vacías, Meta no lo permite)
+  let fechaTexto = 'Sin preferencia';
+  if (fecha) {
+    const d = new Date(fecha + 'T12:00:00');
+    fechaTexto = d.toLocaleDateString('es-GT', { day:'numeric', month:'long', year:'numeric' });
+  }
+  const horasFranja = ['Mañana','Tarde','Cualquier hora'];
+  const horaTexto = horaPref ? (horasFranja.includes(horaPref) ? horaPref : formatTime(horaPref)) : 'Sin preferencia';
+
   try {
     await addDoc(window._espCol, {
       nombre, tel,
       especialidad: S.especialidad,
       fechaPreferida: fecha || null,
+      horaPreferida: horaPref || null,
+      clinica: 'mixco',
       registradoEn: new Date().toISOString()
     });
+
+    // ── Notificación WhatsApp via Make.com (webhook lista de espera) ──
+    try {
+      await fetch('https://hook.us2.make.com/cqlo0kh1wagdt9pwbxan9ww233bme6nw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo_evento: 'lista_espera',
+          clinica: 'Mixco',
+          paciente: nombre,
+          telefono: tel,
+          especialidad: NOMBRES_ESP[S.especialidad] || S.especialidad,
+          fecha_preferida: fechaTexto,
+          hora_preferida: horaTexto,
+          notificar: ['50255370427']
+        })
+      });
+      console.log('✅ Webhook lista de espera enviado');
+    } catch(e) { console.log('⚠️ Error webhook lista espera:', e); }
+
     closeModal('modalEspera');
     document.getElementById('esperaNombre').value = '';
     document.getElementById('esperaTel').value = '';
     document.getElementById('esperaFecha').value = '';
+    _esperaHoraSel = null;
     // Show thank you in step3
     document.getElementById('esperaBannerCTA').innerHTML = `
       <div class="espera-icon">✅</div>
@@ -3830,6 +3921,7 @@ function initAllListeners() {
   const beff = document.getElementById('btnEsperaFromFuturo');
   if (beff) beff.addEventListener('click', () => {
     closeModal('modalFuturo');
+    poblarEsperaHoras();
     openModal('modalEspera');
   });
 
@@ -3839,6 +3931,7 @@ function initAllListeners() {
     document.getElementById('esperaEspLabel').textContent = NOMBRES_ESP[S.especialidad] || S.especialidad;
     // Pre-fill fecha if selected
     if (S.selectedDate) document.getElementById('esperaFecha').value = dateToStr(S.selectedDate);
+    poblarEsperaHoras();
     openModal('modalEspera');
   });
 
