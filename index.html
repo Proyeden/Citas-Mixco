@@ -2045,6 +2045,25 @@ function getMedicoId() {
   return MEDICOS[S.especialidad]?.id;
 }
 
+// Devuelve los números a notificar: especialista + sede.
+// mid: 'denis' (medicina interna/diabetes), 'nochez' (pediatría), 'pamela' (psicología)
+// sede: 'mixco' o 'sancristobal'
+function getNotificarNums(mid, sede) {
+  const especialista = {
+    denis:  '50242146520',  // Medicina interna y diabetes (CEDIMI)
+    nochez: '50258436629',  // Pediatría (NeoPediatrics)
+    pamela: '50236079566'   // Psicología
+  };
+  const sedes = {
+    mixco:        '50255147500',
+    sancristobal: '50236580859'
+  };
+  const nums = [];
+  if (especialista[mid]) nums.push(especialista[mid]);
+  if (sedes[sede]) nums.push(sedes[sede]);
+  return nums;
+}
+
 function isAvailableDay(year, month, day) {
   const d = new Date(year, month, day);
   const dow = d.getDay();
@@ -2578,6 +2597,7 @@ window.confirmarCita = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id,
+        clinica: 'Mixco',
         paciente: nombre,
         padre: cita.padre || '',
         especialidad: NOMBRES_ESP[S.especialidad],
@@ -2588,7 +2608,7 @@ window.confirmarCita = async () => {
         precio: `Q${S.precio}`,
         tipo: cita.tipo,
         medico: medico.nombre,
-        notificar: ['50242146520', '50255370427']
+        notificar: getNotificarNums(getMedicoId(), 'mixco')
       })
     });
     console.log('✅ Webhook enviado a Make.com');
@@ -3375,7 +3395,7 @@ window.guardarEspera = async () => {
           especialidad: NOMBRES_ESP[S.especialidad] || S.especialidad,
           fecha_preferida: fechaTexto,
           hora_preferida: horaTexto,
-          notificar: ['50255370427']
+          notificar: getNotificarNums(getMedicoId(), 'mixco')
         })
       });
       console.log('✅ Webhook lista de espera enviado');
