@@ -1750,7 +1750,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
 <!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, query, where, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCHYg68CN9m5hpBVvyL8QcOOuX7L7BZOdA",
@@ -3595,9 +3595,16 @@ window.cerrarFlyer = cerrarFlyer;
 
 async function cargarFlyer(){
   try {
-    const snap = await getDocs(window._cfgCol);
+    // Consultar SOLO el documento del flyer (más rápido que toda la colección).
     let cfg = null;
-    snap.forEach(d => { if (d.id === 'flyer_mixco') cfg = d.data(); });
+    try {
+      const dref = doc(window._db, 'config_app', 'flyer_mixco');
+      const dsnap = await getDoc(dref);
+      if (dsnap.exists()) cfg = dsnap.data();
+    } catch(_) {
+      const snap = await getDocs(window._cfgCol);
+      snap.forEach(d => { if (d.id === 'flyer_mixco') cfg = d.data(); });
+    }
     if (!cfg || !cfg.activo || !cfg.imagen) return;
     if (cfg.hasta) {
       const hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -3606,7 +3613,11 @@ async function cargarFlyer(){
     }
     const img = document.getElementById('flyerImg');
     const ov = document.getElementById('flyerOverlay');
-    if (img && ov) { img.src = cfg.imagen; ov.style.display = 'flex'; }
+    if (img && ov) {
+      // Mostrar el overlay YA y dejar que la imagen cargue dentro.
+      ov.style.display = 'flex';
+      img.src = cfg.imagen;
+    }
   } catch(e) { console.log('Flyer:', e); }
 }
 cargarFlyer();
