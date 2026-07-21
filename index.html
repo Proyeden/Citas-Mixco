@@ -2119,13 +2119,16 @@ async function cargarDisponibilidad(mid){
   const slots = new Map();   // fecha → [horas publicadas]
   const citas = new Map();   // fecha → Set(horas ocupadas)
   try {
-    const sq = query(window._slotsCol,
-      where('medicoId','==',mid),
-      where('disponible','==',true));
+    // UN SOLO filtro: una consulta con dos campos (medicoId + disponible)
+    // requiere un índice compuesto en Firestore y, si no existe, FALLA EN
+    // SILENCIO — la app creería que no hay ningún horario. Filtramos el resto
+    // en memoria, que es instantáneo.
+    const sq = query(window._slotsCol, where('medicoId','==',mid));
     const ssnap = await getDocs(sq);
     ssnap.forEach(d => {
       const x = d.data();
       if (!x.fecha || !x.hora) return;
+      if (x.disponible === false) return;
       if (x.clinica === 'sancristobal') return;   // esos son de la otra sede
       if (!slots.has(x.fecha)) slots.set(x.fecha, []);
       slots.get(x.fecha).push(x.hora);
@@ -2146,6 +2149,32 @@ async function cargarDisponibilidad(mid){
   return window._dispCache;
 }
 function invalidarDisponibilidad(){ window._dispCache = null; }
+
+// Estado real de un día, leído directo de la caché. No depende de que
+// findFirstAvailableDate haya corrido antes, así que el calendario nunca queda
+// clasificando días por un dato a medio llenar.
+//   'libre'        → hay al menos un horario disponible
+//   'lleno'        → hay horarios pero todos tomados
+//   'sin-publicar' → la agenda no publicó horarios ese día
+//   'desconocido'  → todavía no se cargó la caché
+function estadoDia(dateStr, mid){
+  const c = window._dispCache;
+  if (!c || c.mid !== mid) return 'desconocido';
+  const slots = c.slots.get(dateStr) || [];
+  if (!slots.length) {
+    // Sin horarios publicados. OJO: un día TOTALMENTE ocupado por citas reales
+    // no genera huecos, así que la agenda no publica nada para él — se ve igual
+    // que un día no aperturado. Dentro del horizonte que la agenda publica
+    // (30 días) lo tratamos como LLENO, que es lo que casi siempre es; solo
+    // más allá de ese horizonte es "programación pendiente".
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    const dd = new Date(dateStr + 'T12:00:00'); dd.setHours(0,0,0,0);
+    const diasAdelante = Math.round((dd - hoy) / 86400000);
+    return (diasAdelante >= 0 && diasAdelante <= 30) ? 'lleno' : 'sin-publicar';
+  }
+  const occ = c.citas.get(dateStr) || new Set();
+  return slots.every(s => occ.has(s)) ? 'lleno' : 'libre';
+}
 
 async function isDayFull(dateStr, mid) {
   const recordar = (v) => { window._diaSinEspacio[dateStr] = v; return v; };
@@ -2229,13 +2258,16 @@ function isDayBookable(year, month, day) {
 
   if (targetStr === nextDayStr && jornadaEnded) return 'available';
 
-  // Día SIN ESPACIO: bloqueado (la agenda no publicó horarios) o lleno (todos
-  // tomados). En ambos casos la programación SÍ existe; lo que no hay son citas.
-  // Debe decir "Agenda completa" y ofrecer opciones, NO "Programación no
-  // disponible", que corresponde solo a los días aún no aperturados.
+  // Estado real del día, directo de la caché (no depende de otra búsqueda).
+  const est = estadoDia(targetStr, mid);
+  if (est === 'libre') return 'available';
+  // LLENO: la programación existe, lo que no hay son citas → "Agenda completa"
+  // con las dos opciones, no "Programación no disponible".
+  if (est === 'lleno') return 'available';
+  // Respaldo por si la caché aún no cargó
   if (window._diaSinEspacio && window._diaSinEspacio[targetStr]) return 'available';
 
-  // Días aún no aperturados → programación pendiente / lista de espera
+  // Sin horarios publicados → programación pendiente / lista de espera
   return 'future';
 }
 
