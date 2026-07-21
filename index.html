@@ -2005,6 +2005,7 @@ window.goStep = (n) => {
 // ── STEP 1: SPECIALTY ──────────────────────────────────
 window.selectSpecialty = (esp, el) => {
   S.especialidad = esp;
+  invalidarDisponibilidad();
   S.tipo = null; S.precio = 0; S.selectedDate = null; S.selectedSlot = null;
   document.querySelectorAll('.specialty-card').forEach(c => c.classList.remove('selected'));
   if(el) el.classList.add('selected');
@@ -2107,30 +2108,51 @@ window._todayIsFull = false;
 // "no hay citas" (bloqueado o lleno) de "programación aún no aperturada".
 window._diaSinEspacio = {};
 
-async function isDayFull(dateStr, mid) {
-  const recordar = (v) => { window._diaSinEspacio[dateStr] = v; return v; };
-  let allSlots = [];
+// ── CACHÉ DE DISPONIBILIDAD ────────────────────────────────────────────────
+// Antes, buscar la próxima fecha libre hacía 2 consultas a Firebase POR DÍA
+// (hasta 60 seguidas), y con la agenda llena la app se quedaba paralizada
+// varios segundos. Ahora se trae todo de una sola vez y se consulta en memoria.
+window._dispCache = null;
+
+async function cargarDisponibilidad(mid){
+  if (window._dispCache && window._dispCache.mid === mid) return window._dispCache;
+  const slots = new Map();   // fecha → [horas publicadas]
+  const citas = new Map();   // fecha → Set(horas ocupadas)
   try {
     const sq = query(window._slotsCol,
-      where('fecha','==',dateStr),
       where('medicoId','==',mid),
       where('disponible','==',true));
     const ssnap = await getDocs(sq);
-    allSlots = ssnap.docs
-      .map(d => d.data())
-      // La colección es compartida con San Cristóbal: si no filtramos, Mixco
-      // cree que tiene horarios que en realidad son de la otra sede, y el
-      // calendario deja de coincidir con lo que después muestra.
-      .filter(x => x.clinica !== 'sancristobal')
-      .map(x => x.hora);
-  } catch(e) {}
-  if (allSlots.length === 0) return recordar('real');
-  const occupied = new Set();
+    ssnap.forEach(d => {
+      const x = d.data();
+      if (!x.fecha || !x.hora) return;
+      if (x.clinica === 'sancristobal') return;   // esos son de la otra sede
+      if (!slots.has(x.fecha)) slots.set(x.fecha, []);
+      slots.get(x.fecha).push(x.hora);
+    });
+  } catch(e) { console.log('cargarDisponibilidad slots:', e); }
   try {
-    const q = query(window._col, where('fecha','==',dateStr), where('medicoId','==',mid));
-    const snap = await getDocs(q);
-    snap.forEach(doc => { const c=doc.data(); if (c.estado !== 'cancelada' && c.clinica !== 'sancristobal') occupied.add(c.hora); });
-  } catch(e) {}
+    const cq = query(window._col, where('medicoId','==',mid));
+    const csnap = await getDocs(cq);
+    csnap.forEach(d => {
+      const c = d.data();
+      if (!c.fecha || !c.hora) return;
+      if (c.estado === 'cancelada' || c.clinica === 'sancristobal') return;
+      if (!citas.has(c.fecha)) citas.set(c.fecha, new Set());
+      citas.get(c.fecha).add(c.hora);
+    });
+  } catch(e) { console.log('cargarDisponibilidad citas:', e); }
+  window._dispCache = { mid, slots, citas };
+  return window._dispCache;
+}
+function invalidarDisponibilidad(){ window._dispCache = null; }
+
+async function isDayFull(dateStr, mid) {
+  const recordar = (v) => { window._diaSinEspacio[dateStr] = v; return v; };
+  const cache = await cargarDisponibilidad(mid);
+  const allSlots = cache.slots.get(dateStr) || [];
+  if (allSlots.length === 0) return recordar('real');
+  const occupied = cache.citas.get(dateStr) || new Set();
   if (!allSlots.every(s => occupied.has(s))) return recordar(false);
   return recordar('real');
 }
@@ -2148,9 +2170,9 @@ async function findFirstAvailableDate() {
 
   for (let i = 0; i <= 30; i++) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-    const dow = d.getDay();
-    if (dow === 0) continue; // skip sunday
-    if (!HORARIOS[mid].diasSemana.includes(dow)) continue;
+    if (d.getDay() === 0) continue; // domingo
+    // No filtramos por los días fijos del horario: manda lo que publicó la
+    // agenda, así una jornada especial en un día atípico también se encuentra.
     const dateStr = dateToStr(d);
     const full = await isDayFull(dateStr, mid);
     if (i === 0 && full) window._todayIsFull = true; // today is full
@@ -2594,8 +2616,23 @@ async function mostrarMensajeDia() {
 
 async function buscarCitaMasCercana() {
   const btn = document.querySelector('#diaLlenoPanel button');
-  if (btn) btn.style.opacity = '0.6';
+  let txtOrig = null;
+  if (btn) {
+    btn.style.opacity = '0.6';
+    btn.style.pointerEvents = 'none';
+    const lbl = btn.querySelector('div > div');
+    if (lbl) { txtOrig = lbl.textContent; lbl.textContent = 'Buscando…'; }
+  }
+  const restaurar = () => {
+    if (btn) {
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto';
+      const lbl = btn.querySelector('div > div');
+      if (lbl && txtOrig) lbl.textContent = txtOrig;
+    }
+  };
   const fecha = await findFirstAvailableDate();
+  restaurar();
   if (fecha) {
     const [Y,M,D] = fecha.split('-').map(Number);
     S.selectedDate = new Date(Y, M-1, D);
@@ -2663,6 +2700,7 @@ window.confirmarCita = async () => {
 
   try {
     await addDoc(window._col, cita);
+    invalidarDisponibilidad();
   } catch(e) {
     console.log('Firebase save error', e);
     // Fallback local
