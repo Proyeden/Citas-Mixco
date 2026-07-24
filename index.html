@@ -2157,16 +2157,60 @@ function invalidarDisponibilidad(){ window._dispCache = null; }
 //   'lleno'        → hay horarios pero todos tomados
 //   'sin-publicar' → la agenda no publicó horarios ese día
 //   'desconocido'  → todavía no se cargó la caché
+// ── CUÁNTOS DÍAS SE LE MUESTRAN AL PACIENTE ────────────────────────────────
+// La cantidad de días abiertos depende de la disponibilidad real:
+//   • Si un día tiene MENOS DE 2 espacios libres (agenda apretada) → se abren
+//     hasta 3 días, para que el paciente tenga de dónde elegir.
+//   • Si hay 2 o más espacios libres (hay holgura) → se abre 1 solo día,
+//     concentrando las reservas y conservando la sensación de agenda activa.
+const REVEAL_MIN_LIBRES = 2;   // umbral de "poca disponibilidad"
+const REVEAL_DIAS_ESCASO = 3;  // días a abrir cuando hay poca disponibilidad
+const REVEAL_DIAS_HOLGADO = 1; // días a abrir cuando sobra disponibilidad
+
+function librosDelDia(dateStr, mid){
+  const c = window._dispCache;
+  if (!c || c.mid !== mid) return 0;
+  const slots = c.slots.get(dateStr) || [];
+  if (!slots.length) return 0;
+  const occ = c.citas.get(dateStr) || new Set();
+  return slots.filter(s => !occ.has(s)).length;
+}
+
+// Devuelve el conjunto de fechas que el paciente puede elegir.
+function diasRevelados(mid){
+  const c = window._dispCache;
+  if (!c || c.mid !== mid) return null;
+  const hoy = new Date();
+  const set = new Set();
+
+  // Buscar los días con espacio, en orden, hasta 30 días adelante.
+  const conEspacio = [];
+  for (let i = 0; i <= 30; i++){
+    const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + i);
+    if (d.getDay() === 0) continue;
+    const f = dateToStr(d);
+    if (librosDelDia(f, mid) > 0) conEspacio.push(f);
+  }
+  if (!conEspacio.length) return set;
+
+  // El primer día con espacio define si la agenda está apretada o holgada.
+  const libresPrimero = librosDelDia(conEspacio[0], mid);
+  const cuantos = (libresPrimero < REVEAL_MIN_LIBRES)
+    ? REVEAL_DIAS_ESCASO
+    : REVEAL_DIAS_HOLGADO;
+
+  conEspacio.slice(0, cuantos).forEach(f => set.add(f));
+  return set;
+}
+
 function estadoDia(dateStr, mid){
   const c = window._dispCache;
   if (!c || c.mid !== mid) return 'desconocido';
   const slots = c.slots.get(dateStr) || [];
   if (!slots.length) {
-    // Sin horarios publicados. OJO: un día TOTALMENTE ocupado por citas reales
-    // no genera huecos, así que la agenda no publica nada para él — se ve igual
-    // que un día no aperturado. Dentro del horizonte que la agenda publica
-    // (30 días) lo tratamos como LLENO, que es lo que casi siempre es; solo
-    // más allá de ese horizonte es "programación pendiente".
+    // Sin horarios publicados. Un día TOTALMENTE ocupado por citas reales no
+    // genera huecos, así que se ve igual que un día no aperturado. Dentro del
+    // horizonte que publica la agenda lo tratamos como LLENO.
     const hoy = new Date(); hoy.setHours(0,0,0,0);
     const dd = new Date(dateStr + 'T12:00:00'); dd.setHours(0,0,0,0);
     const diasAdelante = Math.round((dd - hoy) / 86400000);
@@ -2258,16 +2302,13 @@ function isDayBookable(year, month, day) {
 
   if (targetStr === nextDayStr && jornadaEnded) return 'available';
 
-  // Estado real del día, directo de la caché (no depende de otra búsqueda).
-  const est = estadoDia(targetStr, mid);
-  if (est === 'libre') return 'available';
-  // LLENO: la programación existe, lo que no hay son citas → "Agenda completa"
-  // con las dos opciones, no "Programación no disponible".
-  if (est === 'lleno') return 'available';
-  // Respaldo por si la caché aún no cargó
-  if (window._diaSinEspacio && window._diaSinEspacio[targetStr]) return 'available';
+  // Solo se abren los días REVELADOS según la disponibilidad (ver
+  // diasRevelados). Antes, todo día sin horarios dentro de 30 días se marcaba
+  // como disponible y eso ABRÍA EL MES ENTERO, perdiendo el revelado gradual.
+  const revelados = diasRevelados(mid);
+  if (revelados && revelados.has(targetStr)) return 'available';
 
-  // Sin horarios publicados → programación pendiente / lista de espera
+  // Días aún no revelados → programación pendiente / lista de espera
   return 'future';
 }
 
