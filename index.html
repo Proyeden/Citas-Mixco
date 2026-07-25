@@ -2249,19 +2249,22 @@ async function findFirstAvailableDate() {
   const mid = getMedicoId();
   if (!mid) return null;
 
+  // Cargar disponibilidad FRESCA para este médico (no confiar en una caché que
+  // pudo quedar de otra especialidad o invalidada). cargarDisponibilidad ya
+  // memoiza por médico, así que si ya está cargada es instantáneo.
+  await cargarDisponibilidad(mid);
+
   const now = new Date();
-  const todayStr = dateToStr(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
   window._todayIsFull = false;
 
   for (let i = 0; i <= 30; i++) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
     if (d.getDay() === 0) continue; // domingo
-    // No filtramos por los días fijos del horario: manda lo que publicó la
-    // agenda, así una jornada especial en un día atípico también se encuentra.
     const dateStr = dateToStr(d);
-    const full = await isDayFull(dateStr, mid);
-    if (i === 0 && full) window._todayIsFull = true; // today is full
-    if (!full) {
+    // Leer directo de la caché (no re-consultar Firebase por día).
+    const est = estadoDia(dateStr, mid);
+    if (i === 0 && est === 'lleno') window._todayIsFull = true;
+    if (est === 'libre') {
       window._firstAvailableDate = dateStr;
       return dateStr;
     }
@@ -2714,17 +2717,43 @@ async function buscarCitaMasCercana() {
       if (lbl && txtOrig) lbl.textContent = txtOrig;
     }
   };
-  const fecha = await findFirstAvailableDate();
+
+  let fecha = null;
+  try {
+    fecha = await findFirstAvailableDate();
+  } catch(err) {
+    restaurar();
+    alert('DIAGNÓSTICO · Error al buscar: ' + (err && err.message ? err.message : err));
+    return;
+  }
   restaurar();
+
+  // Diagnóstico visible: cuántos horarios y citas cargó, y qué fecha encontró.
+  const mid = getMedicoId();
+  const c = window._dispCache;
+  const diag = c
+    ? `médico=${mid} · días con horario=${c.slots.size} · días con citas=${c.citas.size} · fecha hallada=${fecha || 'ninguna'}`
+    : `médico=${mid} · SIN CACHÉ · fecha hallada=${fecha || 'ninguna'}`;
+
   if (fecha) {
     const [Y,M,D] = fecha.split('-').map(Number);
     S.selectedDate = new Date(Y, M-1, D);
     renderCalendar();
     await renderSlots();
+    // Asegurar que la sección de horarios esté VISIBLE antes de hacer scroll
+    // (si el flujo de pasos la dejó oculta, el scroll iba a la nada).
     const sec = document.getElementById('slotsSection');
-    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (sec) {
+      sec.style.display = 'block';
+      const libres = document.querySelectorAll('.slot-available-highlight').length;
+      if (libres === 0) {
+        // Encontró la fecha pero no pintó horarios: mostramos el diagnóstico.
+        alert('DIAGNÓSTICO · Encontró fecha pero 0 horarios visibles.\n' + diag);
+      }
+      sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   } else {
-    alert('No hay citas disponibles en los próximos 30 días. Te sugerimos unirte a la lista de espera.');
+    alert('No hay citas disponibles en los próximos 30 días.\n\nDIAGNÓSTICO · ' + diag);
     irAListaEspera();
   }
 }
