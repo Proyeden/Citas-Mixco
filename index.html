@@ -2517,20 +2517,12 @@ async function renderSlots() {
   const dateStr = dateToStr(S.selectedDate);
 
   try {
-    const sq = query(window._slotsCol,
-      where('fecha','==',dateStr),
-      where('medicoId','==',mid),
-      where('disponible','==',true));
-    const ssnap = await getDocs(sq);
-    const slotsPublicados = ssnap.docs
-      .map(d => d.data())
-      // La colección es compartida con San Cristóbal: descartamos los de esa
-      // sede. Los slots antiguos no traen el campo 'clinica' y son de Mixco,
-      // así que se aceptan (compatibilidad hacia atrás).
-      .filter(x => x.clinica !== 'sancristobal')
-      .map(x => ({ hora: x.hora, durMin: x.durMin || 45 }))
-      .sort((a,b) => a.hora.localeCompare(b.hora));
-    allSlots = slotsPublicados.map(s => s.hora);
+    // Reutilizar la caché de disponibilidad (una sola consulta por sesión) en
+    // vez de una consulta con TRES filtros (fecha+medicoId+disponible), que
+    // requiere un índice compuesto en Firestore y, si no existe, FALLA EN
+    // SILENCIO y deja al paciente sin horarios.
+    const cache = await cargarDisponibilidad(mid);
+    allSlots = (cache.slots.get(dateStr) || []).slice().sort((a,b)=>a.localeCompare(b));
   } catch(e) { console.log('Error leyendo slots_disponibles:', e); }
 
   // Si no hay slots publicados, mostrar mensaje CON opciones (no dejar al
@@ -2552,17 +2544,13 @@ async function renderSlots() {
     return;
   }
 
-  // Leer citas ya reservadas
+  // Leer citas ya reservadas (de la misma caché ya cargada arriba)
   const occupied = new Set();
   const adminBlocked = new Set();
   try {
-    const q = query(window._col,
-      where('fecha','==',dateStr),
-      where('medicoId','==',mid));
-    const snap = await getDocs(q);
-    snap.forEach(d => {
-      if (d.data().estado !== 'cancelada' && d.data().clinica !== 'sancristobal') occupied.add(d.data().hora);
-    });
+    const cache = await cargarDisponibilidad(mid);
+    const occ = cache.citas.get(dateStr);
+    if (occ) occ.forEach(h => occupied.add(h));
   } catch(e) { console.log('Firebase error citas:', e); }
 
   // Mostrar máximo 2 slots libres al paciente
