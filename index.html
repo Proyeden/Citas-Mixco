@@ -2182,7 +2182,18 @@ function librosDelDia(dateStr, mid){
   const slots = c.slots.get(dateStr) || [];
   if (!slots.length) return 0;
   const occ = c.citas.get(dateStr) || new Set();
-  return slots.filter(s => !occ.has(s)).length;
+  // Mismo criterio que estadoDia: si es hoy, no contar los slots ya pasados.
+  const now = new Date();
+  const esHoy = dateStr === dateToStr(now);
+  const nowMins = esHoy ? (now.getHours()*60 + now.getMinutes()) : -1;
+  return slots.filter(s => {
+    if (occ.has(s)) return false;
+    if (esHoy) {
+      const [h,m] = s.split(':').map(Number);
+      if (nowMins >= h*60 + m + 15) return false;
+    }
+    return true;
+  }).length;
 }
 
 // Devuelve el conjunto de fechas que el paciente puede elegir.
@@ -2229,7 +2240,21 @@ function estadoDia(dateStr, mid){
     return (diasAdelante >= 0 && diasAdelante <= 30) ? 'lleno' : 'sin-publicar';
   }
   const occ = c.citas.get(dateStr) || new Set();
-  return slots.every(s => occ.has(s)) ? 'lleno' : 'libre';
+  // Si el día es HOY, un slot ya pasado de hora NO cuenta como disponible.
+  // Sin esto, la búsqueda marcaba "hoy libre" por huecos de la mañana ya
+  // vencidos, llevaba al paciente a hoy y renderSlots no mostraba nada.
+  const now = new Date();
+  const esHoy = dateStr === dateToStr(now);
+  const nowMins = esHoy ? (now.getHours()*60 + now.getMinutes()) : -1;
+  const disponible = s => {
+    if (occ.has(s)) return false;
+    if (esHoy) {
+      const [h,m] = s.split(':').map(Number);
+      if (nowMins >= h*60 + m + 15) return false; // ya pasó (15 min de gracia)
+    }
+    return true;
+  };
+  return slots.some(disponible) ? 'libre' : 'lleno';
 }
 
 async function isDayFull(dateStr, mid) {
@@ -2261,10 +2286,19 @@ async function findFirstAvailableDate() {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
     if (d.getDay() === 0) continue; // domingo
     const dateStr = dateToStr(d);
-    // Leer directo de la caché (no re-consultar Firebase por día).
     const est = estadoDia(dateStr, mid);
     if (i === 0 && est === 'lleno') window._todayIsFull = true;
     if (est === 'libre') {
+      // Para HOY, verificar que quede al menos un horario que NO haya pasado
+      // (con 15 min de gracia). Si todos pasaron, hoy no sirve: seguir buscando.
+      if (i === 0) {
+        const c = window._dispCache;
+        const slotsHoy = [...new Set(c ? (c.slots.get(dateStr) || []) : [])];
+        const occ = (c && c.citas.get(dateStr)) || new Set();
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+        const hayFuturo = slotsHoy.some(s => !occ.has(s) && timeToMins(s) + 15 > nowMins);
+        if (!hayFuturo) continue; // todos los libres de hoy ya pasaron
+      }
       window._firstAvailableDate = dateStr;
       return dateStr;
     }
@@ -2526,6 +2560,9 @@ async function renderSlots() {
     // SILENCIO y deja al paciente sin horarios.
     const cache = await cargarDisponibilidad(mid);
     allSlots = (cache.slots.get(dateStr) || []).slice().sort((a,b)=>a.localeCompare(b));
+    // Quitar duplicados: al republicar, la agenda puede dejar el mismo horario
+    // más de una vez, y eso descuadra los conteos de disponibilidad.
+    allSlots = [...new Set(allSlots)];
   } catch(e) { console.log('Error leyendo slots_disponibles:', e); }
 
   // Si no hay slots publicados, mostrar mensaje CON opciones (no dejar al
@@ -2723,37 +2760,25 @@ async function buscarCitaMasCercana() {
     fecha = await findFirstAvailableDate();
   } catch(err) {
     restaurar();
-    alert('DIAGNÓSTICO · Error al buscar: ' + (err && err.message ? err.message : err));
+    console.error('buscarCitaMasCercana:', err);
+    alert('Hubo un problema al buscar. Intentá de nuevo en un momento.');
     return;
   }
   restaurar();
-
-  // Diagnóstico visible: cuántos horarios y citas cargó, y qué fecha encontró.
-  const mid = getMedicoId();
-  const c = window._dispCache;
-  const diag = c
-    ? `médico=${mid} · días con horario=${c.slots.size} · días con citas=${c.citas.size} · fecha hallada=${fecha || 'ninguna'}`
-    : `médico=${mid} · SIN CACHÉ · fecha hallada=${fecha || 'ninguna'}`;
 
   if (fecha) {
     const [Y,M,D] = fecha.split('-').map(Number);
     S.selectedDate = new Date(Y, M-1, D);
     renderCalendar();
     await renderSlots();
-    // Asegurar que la sección de horarios esté VISIBLE antes de hacer scroll
-    // (si el flujo de pasos la dejó oculta, el scroll iba a la nada).
+    // Asegurar que la sección de horarios esté VISIBLE antes de hacer scroll.
     const sec = document.getElementById('slotsSection');
     if (sec) {
       sec.style.display = 'block';
-      const libres = document.querySelectorAll('.slot-available-highlight').length;
-      if (libres === 0) {
-        // Encontró la fecha pero no pintó horarios: mostramos el diagnóstico.
-        alert('DIAGNÓSTICO · Encontró fecha pero 0 horarios visibles.\n' + diag);
-      }
       sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   } else {
-    alert('No hay citas disponibles en los próximos 30 días.\n\nDIAGNÓSTICO · ' + diag);
+    alert('No hay citas disponibles en los próximos 30 días. Te sugerimos unirte a la lista de espera.');
     irAListaEspera();
   }
 }
