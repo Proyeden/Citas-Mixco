@@ -1403,11 +1403,20 @@ document.getElementById('pwa-manifest').href = manifestURL;
     <div id="step5" class="step-content" style="display:none">
       <div class="confirm-box">
         <div class="confirm-icon">✅</div>
+        <p style="font-size:20px;font-weight:800;margin:4px 0 2px">¡Cita confirmada!</p>
+        <p style="font-size:13px;opacity:0.85;margin:0 0 14px">Tu reserva quedó registrada con éxito</p>
+
+        <!-- Fecha y hora GRANDES: lo primero que el paciente debe ver -->
+        <div id="confirmCuando" style="background:rgba(255,255,255,0.15);border-radius:14px;padding:16px;margin:0 0 14px">
+          <div id="confirmFechaBig" style="font-size:19px;font-weight:800;text-transform:capitalize;line-height:1.3"></div>
+          <div id="confirmHoraBig" style="font-size:30px;font-weight:800;margin-top:4px;color:#95D5B2"></div>
+        </div>
+
         <div class="confirm-id" id="confirmId"></div>
-        <p>¡Tu cita ha sido registrada!</p>
-        <p>Llega 10 minutos antes de tu cita</p>
-        <p style="font-size:12px; opacity:0.7; margin-top:6px">✅ El equipo ha sido notificado</p>
+        <p style="font-size:13px;margin:8px 0 2px">📌 Llega 10 minutos antes de tu cita</p>
+        <p style="font-size:12px; opacity:0.7; margin-top:6px">✅ El equipo ha sido notificado de tu cita</p>
         <div class="confirm-detail" id="confirmDetail"></div>
+        <p style="font-size:12px;opacity:0.75;margin-top:12px;line-height:1.4">💡 Podés tomar una captura de pantalla de esta confirmación</p>
       </div>
       <div class="card" style="text-align:center">
         <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px">¿Necesitas otra cita o para alguien más?</p>
@@ -2575,6 +2584,13 @@ async function renderSlots() {
     });
   }
 
+  // ¿Cuántos espacios libres hay REALMENTE en el día (no solo los revelados)?
+  const totalLibres = allSlots.filter(s => !occupied.has(s) && !adminBlocked.has(s)).length;
+  // Regla de marketing: si quedan POCOS libres (≤2), mostramos las ocupadas
+  // tachadas para dar sensación de escasez/urgencia. Si hay HOLGURA (≥3),
+  // mostramos solo las libres, más limpio.
+  const mostrarOcupadas = totalLibres <= 2;
+
   // Render
   grid.innerHTML = '';
   allSlots.forEach(slot => {
@@ -2590,6 +2606,9 @@ async function renderSlots() {
         document.getElementById('btnStep3').disabled = false;
       });
     } else {
+      // Ocupada o pasada. Solo se muestra (tachada) cuando hay poca
+      // disponibilidad; con holgura se omite para no saturar la lista.
+      if (!mostrarOcupadas) return;
       div.className = 'slot slot-visually-occupied';
       div.innerHTML = `<span>${formatTime(slot)}</span><small>Ocupado</small>`;
     }
@@ -2844,6 +2863,10 @@ window.confirmarCita = async () => {
 
   // Show confirmation
   document.getElementById('confirmId').textContent = `Cita #${id}`;
+  const _fBig = document.getElementById('confirmFechaBig');
+  if(_fBig) _fBig.textContent = S.selectedDate.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
+  const _hBig = document.getElementById('confirmHoraBig');
+  if(_hBig) _hBig.textContent = formatTime(S.selectedSlot);
   document.getElementById('confirmDetail').innerHTML = `
     <div class="confirm-detail-row"><span class="label">Paciente</span><span class="value">${nombre}</span></div>
     ${padre ? `<div class="confirm-detail-row"><span class="label">Padre / Madre</span><span class="value">${padre}</span></div>` : ''}
@@ -3523,8 +3546,33 @@ window.loadEspera = async (filtro = 'todas') => {
       });
       div.querySelector('[data-remove]').addEventListener('click', async e => {
         if (!confirm('¿Remover de la lista de espera?')) return;
-        await deleteDoc(doc(window._db,'lista_espera', e.currentTarget.dataset.remove));
-        loadEspera(filtro);
+        const id = e.currentTarget.dataset.remove;
+        const btn = e.currentTarget;
+        const telItem = item.tel;
+        btn.disabled = true;
+        btn.textContent = 'Removiendo…';
+        try {
+          await deleteDoc(doc(window._db, 'lista_espera', id));
+          // Si el MISMO paciente (mismo teléfono) tiene otras entradas, se
+          // ofrece borrarlas todas: es la causa típica de que "siga saliendo"
+          // tras gestionarlo (estaba registrado varias veces).
+          if (telItem) {
+            const snap = await getDocs(window._espCol);
+            const dups = [];
+            snap.forEach(d => { if (d.data().tel === telItem && d.id !== id) dups.push(d.id); });
+            if (dups.length > 0 &&
+                confirm(`Este paciente tiene ${dups.length} registro(s) más en la lista. ¿Removerlos también?`)) {
+              for (const dupId of dups) await deleteDoc(doc(window._db, 'lista_espera', dupId));
+            }
+          }
+          await loadEspera(filtro);
+        } catch(err) {
+          console.error('Error al remover de lista de espera:', err);
+          alert('No se pudo remover. Revisá tu conexión e intentá de nuevo.');
+          btn.disabled = false;
+          btn.textContent = 'Remover';
+        }
+      });
       });
       list.appendChild(div);
     });
