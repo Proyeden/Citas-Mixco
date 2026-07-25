@@ -2186,13 +2186,19 @@ function librosDelDia(dateStr, mid){
 }
 
 // Devuelve el conjunto de fechas que el paciente puede elegir.
+// MEMOIZADO: isDayBookable corre por cada celda del calendario (~35 veces por
+// render), y sin caché cada llamada recorría 30 días — cientos de operaciones
+// que congelaban la app. Se recalcula solo cuando cambia la caché de
+// disponibilidad (invalidarDisponibilidad limpia también este memo).
+window._revelMemo = null;
 function diasRevelados(mid){
   const c = window._dispCache;
   if (!c || c.mid !== mid) return null;
+  if (window._revelMemo && window._revelMemo.mid === mid && window._revelMemo.cache === c) {
+    return window._revelMemo.set;
+  }
   const hoy = new Date();
   const set = new Set();
-
-  // Buscar los días con espacio, en orden, hasta 30 días adelante.
   const conEspacio = [];
   for (let i = 0; i <= 30; i++){
     const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + i);
@@ -2200,15 +2206,12 @@ function diasRevelados(mid){
     const f = dateToStr(d);
     if (librosDelDia(f, mid) > 0) conEspacio.push(f);
   }
-  if (!conEspacio.length) return set;
-
-  // El primer día con espacio define si la agenda está apretada o holgada.
-  const libresPrimero = librosDelDia(conEspacio[0], mid);
-  const cuantos = (libresPrimero < REVEAL_MIN_LIBRES)
-    ? REVEAL_DIAS_ESCASO
-    : REVEAL_DIAS_HOLGADO;
-
-  conEspacio.slice(0, cuantos).forEach(f => set.add(f));
+  if (conEspacio.length){
+    const libresPrimero = librosDelDia(conEspacio[0], mid);
+    const cuantos = (libresPrimero < REVEAL_MIN_LIBRES) ? REVEAL_DIAS_ESCASO : REVEAL_DIAS_HOLGADO;
+    conEspacio.slice(0, cuantos).forEach(f => set.add(f));
+  }
+  window._revelMemo = { mid, cache: c, set };
   return set;
 }
 
@@ -3572,7 +3575,6 @@ window.loadEspera = async (filtro = 'todas') => {
           btn.disabled = false;
           btn.textContent = 'Remover';
         }
-      });
       });
       list.appendChild(div);
     });
