@@ -1250,7 +1250,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
     <div id="step1" class="step-content">
       <div class="card">
         <h2>¿Para qué especialidad?</h2>
-        <p class="subtitle">Selecciona el tipo de consulta que necesitas</p>
+        <p class="subtitle">Seleccione el tipo de consulta que necesita</p>
         <div class="specialty-grid">
           <div class="specialty-card" data-esp="medicina-interna">
             <div class="spec-icon">🫀</div>
@@ -1310,7 +1310,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
     <div id="step3" class="step-content" style="display:none">
       <div class="card">
         <h2 id="step3Title">Elige tu fecha y hora</h2>
-        <p class="subtitle" id="step3Sub">Selecciona el día y horario disponible</p>
+        <p class="subtitle" id="step3Sub">Seleccione el día y horario disponible</p>
 
         <!-- Calendario -->
         <div class="calendar-header">
@@ -1333,7 +1333,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
         <div class="espera-banner" id="esperaBannerCTA" style="display:none">
           <div class="espera-icon">🔔</div>
           <h3>¿No encontraste un horario?</h3>
-          <p>Únete a la lista de espera y te avisaremos en cuanto haya un espacio disponible.</p>
+          <p>Únase a la lista de espera y te avisaremos en cuanto haya un espacio disponible.</p>
           <button class="btn-espera" id="btnUnirseEspera">Unirme a la lista de espera</button>
         </div>
 
@@ -1348,7 +1348,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
     <div id="step4" class="step-content" style="display:none">
       <div class="card">
         <h2>Tus datos</h2>
-        <p class="subtitle">Para confirmar tu cita necesitamos tu información</p>
+        <p class="subtitle">Para confirmar su cita necesitamos tu información</p>
 
         <div class="form-group">
           <label>Nombre completo *</label>
@@ -1404,7 +1404,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
       <div class="confirm-box">
         <div class="confirm-icon">✅</div>
         <p style="font-size:20px;font-weight:800;margin:4px 0 2px">¡Cita confirmada!</p>
-        <p style="font-size:13px;opacity:0.85;margin:0 0 14px">Tu reserva quedó registrada con éxito</p>
+        <p style="font-size:13px;opacity:0.85;margin:0 0 14px">Su reserva quedó registrada con éxito</p>
 
         <!-- Fecha y hora GRANDES: lo primero que el paciente debe ver -->
         <div id="confirmCuando" style="background:rgba(255,255,255,0.15);border-radius:14px;padding:16px;margin:0 0 14px">
@@ -1413,10 +1413,10 @@ document.getElementById('pwa-manifest').href = manifestURL;
         </div>
 
         <div class="confirm-id" id="confirmId"></div>
-        <p style="font-size:13px;margin:8px 0 2px">📌 Llega 10 minutos antes de tu cita</p>
-        <p style="font-size:12px; opacity:0.7; margin-top:6px">✅ El equipo ha sido notificado de tu cita</p>
+        <p style="font-size:13px;margin:8px 0 2px">📌 Llegue 10 minutos antes de su cita</p>
+        <p style="font-size:12px; opacity:0.7; margin-top:6px">✅ El equipo ha sido notificado de su cita</p>
         <div class="confirm-detail" id="confirmDetail"></div>
-        <p style="font-size:12px;opacity:0.75;margin-top:12px;line-height:1.4">💡 Podés tomar una captura de pantalla de esta confirmación</p>
+        <p style="font-size:12px;opacity:0.75;margin-top:12px;line-height:1.4">💡 Puede tomar una captura de pantalla de esta confirmación</p>
       </div>
       <div class="card" style="text-align:center">
         <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px">¿Necesitas otra cita o para alguien más?</p>
@@ -1711,7 +1711,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
       <button class="btn-opcion" id="btnAgendarHoy">
         <div class="btn-opcion-icon">📅</div>
         <div class="btn-opcion-label">Ver el día más cercano disponible</div>
-        <div id="btnAgendarHoyDesc" style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.3;font-weight:400">Agenda tu cita en el próximo horario disponible ahora mismo</div>
+        <div id="btnAgendarHoyDesc" style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.3;font-weight:400">Agenda su cita en el próximo horario disponible ahora mismo</div>
       </button>
       <button class="btn-opcion btn-opcion-espera" id="btnEsperaFromFuturo">
         <div class="btn-opcion-icon">🔔</div>
@@ -2474,7 +2474,7 @@ function renderCalendar() {
         // Día realmente no aperturado → programación pendiente
         document.getElementById('modalFuturoTitle').textContent = 'Programación no disponible';
         const msgEl = document.getElementById('futuroMsg');
-        msgEl.innerHTML = `Aún estamos revisando la agenda del <strong style="color:var(--navy);font-size:16px;display:block;margin:8px 0">${dateLabel}</strong> Por favor deja tus datos y alguien de nuestro equipo te contactará para gestionar el día que más te convenga para tu cita.`;
+        msgEl.innerHTML = `Aún estamos revisando la agenda del <strong style="color:var(--navy);font-size:16px;display:block;margin:8px 0">${dateLabel}</strong> Por favor deja sus datos y alguien de nuestro equipo te contactará para gestionar el día que más te convenga para su cita.`;
         document.getElementById('esperaFecha').value = fechaStr;
         const bh = document.getElementById('btnAgendarHoy');
         if (bh) bh.style.display = 'none';
@@ -2539,7 +2539,7 @@ async function renderSlots() {
       const hEl = banner.querySelector('h3');
       const pEl = banner.querySelector('p');
       if (hEl) hEl.textContent = 'Agenda por confirmar';
-      if (pEl) pEl.textContent = 'Esta especialidad aún no tiene horarios publicados. Déjanos tus datos y te contactamos para agendar tu cita.';
+      if (pEl) pEl.textContent = 'Esta especialidad aún no tiene horarios publicados. Déjenos sus datos y te contactamos para agendar su cita.';
     }
     const btn3 = document.getElementById('btnStep3');
     if (btn3) btn3.disabled = true;
@@ -2805,6 +2805,71 @@ function formatTime(t) {
 }
 
 // ── STEP 3: CONFIRMAR ──────────────────────────────────
+// Normaliza teléfono (solo dígitos) y nombre (minúsculas, sin espacios extra ni
+// acentos) para comparar de forma robusta.
+function _normTel(t){ return (t||'').replace(/\D/g,''); }
+function _normNombre(n){
+  return (n||'').toLowerCase().trim().replace(/\s+/g,' ')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+// Busca una cita EXISTENTE del mismo teléfono el mismo día. Devuelve la cita
+// (con _docId) si el nombre también coincide; null si no hay o si el nombre es
+// distinto (probable familiar).
+async function buscarCitaDelDia(tel, nombre, fecha){
+  const telN = _normTel(tel);
+  if (!telN) return null;
+  try {
+    // Un solo filtro (sin índice compuesto): traer las citas de ese día y
+    // filtrar en memoria. La colección es compartida, filtramos por fecha.
+    const snap = await getDocs(query(window._col, where('fecha','==',fecha)));
+    let match = null;
+    snap.forEach(d => {
+      if (match) return;
+      const c = d.data();
+      if (c.estado === 'cancelada') return;
+      if (_normTel(c.tel) !== telN) return;
+      // Mismo teléfono. ¿Mismo nombre? Solo entonces es duplicado.
+      if (_normNombre(c.nombre) === _normNombre(nombre)) {
+        match = { ...c, _docId: d.id };
+      }
+    });
+    return match;
+  } catch(e) { console.log('buscarCitaDelDia:', e); return null; }
+}
+
+// Muestra el aviso de cita existente con 3 opciones. Devuelve una promesa que
+// resuelve a: 'cambiar' | 'otra' | 'cancelar'.
+function preguntarDuplicado(citaExistente){
+  return new Promise(resolve => {
+    let ov = document.getElementById('dupOverlay');
+    if (ov) ov.remove();
+    ov = document.createElement('div');
+    ov.id = 'dupOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:18px';
+    ov.innerHTML = `
+      <div style="max-width:400px;width:100%;background:#fff;border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+        <div style="font-size:34px;text-align:center;margin-bottom:6px">⚠️</div>
+        <h3 style="margin:0 0 6px;font-size:18px;text-align:center;color:var(--navy,#1A3A5C)">Ya tiene una cita ese día</h3>
+        <p style="font-size:14px;color:#555;text-align:center;margin:0 0 4px">A nombre de <strong>${(citaExistente.nombre||'').replace(/</g,'&lt;')}</strong></p>
+        <div style="background:#F1F5F9;border-radius:10px;padding:12px;text-align:center;margin:12px 0">
+          <div style="font-size:13px;color:#64748B">${(citaExistente.especialidad||'')}</div>
+          <div style="font-size:22px;font-weight:800;color:var(--navy,#1A3A5C);margin-top:2px">${citaExistente.hora}</div>
+        </div>
+        <p style="font-size:13px;color:#555;text-align:center;margin:0 0 14px">¿Qué desea hacer?</p>
+        <button id="dupCambiar" style="width:100%;padding:13px;margin-bottom:9px;border:none;border-radius:11px;background:var(--navy,#1A3A5C);color:#fff;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer">🔄 Cambiar mi cita a este nuevo horario</button>
+        <button id="dupOtra" style="width:100%;padding:13px;margin-bottom:9px;border:1.5px solid #CBD5E1;border-radius:11px;background:#fff;color:#334155;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer">👥 Es para otra persona</button>
+        <button id="dupCancelar" style="width:100%;padding:13px;border:none;border-radius:11px;background:#F1F5F9;color:#64748B;font-family:inherit;font-weight:600;font-size:14px;cursor:pointer">Dejar mi cita como está</button>
+      </div>`;
+    document.body.appendChild(ov);
+    const cerrar = (val) => { ov.remove(); resolve(val); };
+    document.getElementById('dupCambiar').onclick = () => cerrar('cambiar');
+    document.getElementById('dupOtra').onclick = () => cerrar('otra');
+    document.getElementById('dupCancelar').onclick = () => cerrar('cancelar');
+    ov.onclick = (e) => { if (e.target === ov) cerrar('cancelar'); };
+  });
+}
+
 window.confirmarCita = async () => {
   const nombre = document.getElementById('fNombre').value.trim();
   const nacDia = document.getElementById('fNacDia').value;
@@ -2820,13 +2885,58 @@ window.confirmarCita = async () => {
 
   const mid = getMedicoId();
   const medico = MEDICOS[S.especialidad];
+  const fechaCita = dateToStr(S.selectedDate);
+
+  // ── EVITAR CITA DUPLICADA ────────────────────────────────────────────────
+  // Antes de crear la cita, revisar si ese TELÉFONO ya tiene una cita el MISMO
+  // día. Si además coincide el NOMBRE, es casi seguro la misma persona
+  // duplicando (dudó si se guardó, tocó dos veces, etc.). Si el teléfono
+  // coincide pero el nombre no, probablemente es un familiar → se deja pasar.
+  const dup = await buscarCitaDelDia(tel, nombre, fechaCita);
+  if (dup) {
+    const accion = await preguntarDuplicado(dup);
+    if (accion === 'cancelar') {
+      // Ya tiene su cita; no creamos otra.
+      return;
+    }
+    if (accion === 'cambiar') {
+      // Mover la cita existente al nuevo horario en vez de crear una segunda.
+      try {
+        await updateDoc(doc(window._db, 'citas', dup._docId), {
+          hora: S.selectedSlot,
+          fecha: fechaCita,
+          medicoId: mid,
+          especialidad: NOMBRES_ESP[S.especialidad],
+          reprogramadaEn: new Date().toISOString(),
+        });
+        invalidarDisponibilidad();
+        // Confirmación del cambio, reutilizando la pantalla del paso 5.
+        document.getElementById('confirmId').textContent = `Cita #${dup.id || dup._docId}`;
+        const fB = document.getElementById('confirmFechaBig');
+        if(fB) fB.textContent = S.selectedDate.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
+        const hB = document.getElementById('confirmHoraBig');
+        if(hB) hB.textContent = formatTime(S.selectedSlot);
+        document.getElementById('confirmDetail').innerHTML =
+          `<div class="confirm-detail-row"><span class="label">Paciente</span><span class="value">${nombre}</span></div>
+           <div class="confirm-detail-row"><span class="label">Nuevo horario</span><span class="value">${formatTime(S.selectedSlot)}</span></div>
+           <div class="confirm-detail-row" style="border-top:1px solid rgba(255,255,255,0.3);margin-top:4px;padding-top:10px"><span class="label">✅ Su cita fue reprogramada</span><span class="value"></span></div>`;
+        goStep(5);
+        return;
+      } catch(e) {
+        alert('No se pudo cambiar su cita. Intentá de nuevo.');
+        return;
+      }
+    }
+    // accion === 'otra' → seguир y crear la cita nueva (es otro paciente).
+  }
+
   const id = 'C' + Date.now().toString().slice(-6);
   const cita = {
     id, nombre, fechaNac, tel, correo, padre,
     especialidad: NOMBRES_ESP[S.especialidad],
     tipo: S.tipo === 'primera' ? 'Primera consulta' : S.tipo === 'subsecuente' ? 'Consulta subsecuente' : 'Consulta',
     precio: S.precio,
-    fecha: dateToStr(S.selectedDate),
+    fecha: fechaCita,
     hora: S.selectedSlot,
     medicoId: mid,
     medicoNombre: medico.nombre,
@@ -3306,7 +3416,7 @@ window.loadReagSlots = async () => {
 };
 
 window.guardarReagenda = async () => {
-  if (!S.reagendaSlot) { alert('Selecciona un horario'); return; }
+  if (!S.reagendaSlot) { alert('Seleccione un horario'); return; }
   const fecha = document.getElementById('reagFecha').value;
   try {
     await updateDoc(doc(window._db,'citas',S.reagendaCitaId), {fecha, hora: S.reagendaSlot});
@@ -3383,7 +3493,7 @@ function getMedicoIdByNombre(nombre) {
 }
 
 window.guardarBloqueo = async () => {
-  if (S.blockSelectedSlots.length===0) { alert('Selecciona al menos un slot'); return; }
+  if (S.blockSelectedSlots.length===0) { alert('Seleccione al menos un slot'); return; }
   const fecha = document.getElementById('blockFecha').value;
   const medNombre = document.getElementById('blockMedico').value;
   const medicoId = getMedicoIdByNombre(medNombre);
