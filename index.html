@@ -1764,7 +1764,7 @@ document.getElementById('pwa-manifest').href = manifestURL;
 <!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, setDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, query, where, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, increment, addDoc, setDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, query, where, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -1888,6 +1888,34 @@ window._guardarEspera = async (registro) => {
   return ref;
 };
 
+// ── SEÑALES DE DEMANDA ───────────────────────────────────────────────────
+// Cuando alguien busca cita y no encuentra, esa demanda hoy se pierde sin
+// dejar rastro: la clínica no tiene forma de saber qué días se está quedando
+// corta. Acá se cuenta, sin guardar NADA de la persona — solo un número por
+// día y por sede. No hay nombre, ni teléfono, ni de quién vino.
+const _demandaVista = new Set();   // una señal por persona y por día
+
+window.registrarDemanda = async (fecha, tipo) => {
+  if (!fecha || !tipo) return;
+  const marca = fecha + '|' + tipo;
+  if (_demandaVista.has(marca)) return;      // no inflar por navegar
+  _demandaVista.add(marca);
+  try {
+    await window._listo;
+    const mid = getMedicoId ? getMedicoId() : null;
+    const ref = doc(window._db, 'demanda', `mixco_${fecha}`);
+    await setDoc(ref, {
+      fecha, sede: 'mixco',
+      [tipo]: increment(1),
+      [`${tipo}_${mid || 'sin'}`]: increment(1),
+      actualizado: new Date().toISOString(),
+    }, { merge: true });
+  } catch (e) {
+    // Que no se registre la demanda no debe romperle la cita a nadie.
+    console.log('demanda:', e && e.code);
+  }
+};
+
 window._traerDatos = async (docIds) => {
   const mapa = {};
   if (!window._esPersonal()) return mapa;
@@ -1913,6 +1941,50 @@ const MEDICOS = {
 // Médicos abiertos a reserva pública. El resto va directo a lista de espera.
 // Para abrir un especialista al público, agregá su id aquí (ej. 'nochez').
 const MEDICOS_ABIERTOS = ['denis'];
+
+// ── QUÉ DÍAS TRABAJA CADA QUIEN ──────────────────────────────────────────
+// El horario vivía escrito a mano en HORARIOS, acá abajo. Eran tres copias
+// —la agenda y las dos páginas de citas— que había que mantener iguales a
+// pulso. Si se cambiaba el horario en la agenda, esta página seguía ofreciendo
+// los días viejos: el paciente podía tocar un sábado que ya no se atiende y
+// encontrarse con que no hay nada.
+//
+// Ahora la agenda publica su modelo y esta página lo lee. La tabla de abajo
+// queda como respaldo: si el documento no está o falla la lectura, todo
+// funciona como antes.
+window._diasDeLaAgenda = null;   // { medicoId: [diasSemana] }
+
+async function cargarModeloPublico(){
+  try {
+    await window._listo;
+    const snap = await getDoc(doc(window._db, 'config_app', 'modelo_publico'));
+    if (!snap.exists()) return false;
+    const profs = (snap.data() || {}).profesionales || {};
+    const mapa = {};
+    for (const [mid, p] of Object.entries(profs)) {
+      const porSede = (p.franjas || {})['mixco'];
+      if (!porSede) continue;
+      const dias = Object.keys(porSede)
+        .filter(dow => (porSede[dow] || []).length)
+        .map(Number)
+        .sort((a, b) => a - b);
+      if (dias.length) mapa[mid] = dias;
+    }
+    if (!Object.keys(mapa).length) return false;
+    window._diasDeLaAgenda = mapa;
+    return true;
+  } catch (e) {
+    console.log('modelo público (se usa la tabla local):', e && e.code);
+    return false;
+  }
+}
+
+// Días que ofrece esta página para un profesional. Manda la agenda; si no
+// contestó, la tabla local.
+window._diasSemanaDe = (mid) => {
+  if (window._diasDeLaAgenda && window._diasDeLaAgenda[mid]) return window._diasDeLaAgenda[mid];
+  return (HORARIOS[mid] && HORARIOS[mid].diasSemana) || [];
+};
 
 const HORARIOS = {
   denis: {
@@ -2203,8 +2275,7 @@ function isAvailableDay(year, month, day) {
   if (dow === 0) return false; // domingo siempre bloqueado
   const mid = getMedicoId();
   if (!mid) return false;
-  const h = HORARIOS[mid];
-  return h.diasSemana.includes(dow);
+  return window._diasSemanaDe(mid).includes(dow);
 }
 
 // Cache: first available date found (today or next open day)
@@ -2414,7 +2485,7 @@ function isDayBookable(year, month, day) {
   if (dow === 0) return 'unavailable';
   const mid = getMedicoId();
   if (!mid) return 'unavailable';
-  if (!HORARIOS[mid].diasSemana.includes(dow)) return 'unavailable';
+  if (!window._diasSemanaDe(mid).includes(dow)) return 'unavailable';
 
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -2670,6 +2741,7 @@ async function renderSlots() {
   if(allSlots.length === 0){
     sec.style.display = 'block';
     grid.innerHTML = '<p style="grid-column:1/-1;color:var(--text-muted);text-align:center;padding:18px 8px;font-size:14px;line-height:1.5;margin:0">No hay horarios disponibles para este día.</p>';
+    try { registrarDemanda(dateStr, 'sinCupo'); } catch(e) {}
     document.getElementById('slotsTitle').textContent = `Horarios — ${S.selectedDate.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'})}`;
     document.getElementById('btnStep3').disabled = true;
 
@@ -2889,6 +2961,10 @@ async function mostrarMensajeDia() {
 
 
 async function buscarCitaMasCercana() {
+  try {
+    const d = S.selectedDate;
+    registrarDemanda(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`, 'buscoCercana');
+  } catch(e) {}
   const btn = document.querySelector('#diaLlenoPanel button');
   let txtOrig = null;
   if (btn) {
@@ -3980,12 +4056,19 @@ window.guardarEspera = async () => {
   const horaTexto = horaPref ? (horasFranja.includes(horaPref) ? horaPref : formatTime(horaPref)) : 'Sin preferencia';
 
   try {
+    try {
+      const fp = document.getElementById('esperaFecha');
+      registrarDemanda((fp && fp.value) || new Date().toISOString().slice(0,10), 'aEspera');
+    } catch(e) {}
     await window._guardarEspera({
       nombre, tel,
       especialidad: S.especialidad,
       fechaPreferida: fecha || null,
       horaPreferida: horaPref || null,
       clinica: 'mixco',
+      // `estado` faltaba: la agenda filtraba por él para contar cuánta gente
+      // esperaba, y como nunca se escribía, el contador daba siempre cero.
+      estado: 'pendiente',
       registradoEn: new Date().toISOString()
     });
 
@@ -4807,6 +4890,7 @@ function initAllListeners() {
   });
 }
 // Call immediately — module runs after DOM is ready
+cargarModeloPublico().then(() => { try { renderCalendar(); } catch(e){} });
 initAllListeners();
 
 // ── SCROLL INDICATOR ──────────────────────────────────
