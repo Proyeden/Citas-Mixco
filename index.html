@@ -1871,6 +1871,77 @@ window._huella = async (tel, nombre) => {
 // sola vez por cita. Si la lectura falla no se bloquea al paciente: sin red la
 // escritura tampoco va a pasar, y dejarlo sin agendar por un tropiezo de
 // conexión es peor que el riesgo que cubre.
+// ── DIAGNÓSTICO: ¿POR QUÉ NO SE OFRECE ESTE HORARIO? ─────────────────────
+//
+// Desde la consola del navegador:   _porQueNo('2026-10-26')
+//
+// Imprime, horario por horario, lo único que hace falta saber: si la agenda lo
+// publicó, si alguna cita lo tiene tomado (y con qué estado y sede), si ya
+// pasó de hora, y si se le está ofreciendo al paciente. Sirve para distinguir
+// de un golpe «la app lo está escondiendo» de «la agenda nunca lo publicó»,
+// que son dos problemas con arreglos en lados opuestos.
+window._porQueNo = async (fecha) => {
+  const mid = (typeof getMedicoId === 'function' && getMedicoId()) || 'denis';
+  const raw = await traerFuturo();
+  const esDeAca = (x) => x.clinica !== 'sancristobal';
+  const pub = (raw.slots || []).filter(x => x.fecha === fecha && x.medicoId === mid);
+  const cit = (raw.citas || []).filter(c => c.fecha === fecha && c.medicoId === mid);
+  const horas = [...new Set(pub.filter(x => x.disponible !== false && esDeAca(x)).map(x => x.hora))].sort();
+
+  console.log(`── ${mid} · ${fecha} ──`);
+  console.log('Publicados por la agenda:', horas.length ? horas.join(', ') : 'NINGUNO');
+
+  const fuera = pub.filter(x => x.disponible === false || !esDeAca(x));
+  if (fuera.length) console.log('Publicados pero descartados acá:',
+    fuera.map(x => `${x.hora} (sede ${x.clinica || 'sin sede'}${x.disponible === false ? ', disponible:false' : ''})`).join(', '));
+
+  const esHoy = fecha === dateToStr(new Date());
+  const ahora = new Date().getHours() * 60 + new Date().getMinutes();
+  console.table(horas.map(h => {
+    const t = cit.find(c => c.hora === h && c.estado !== 'cancelada' && esDeAca(c));
+    return {
+      hora: h,
+      tomado: t ? `SÍ · estado ${t.estado || '(vacío)'} · sede ${t.clinica || '(sin sede)'} · ${t.especialidad || ''}` : 'no',
+      pasado: esHoy && ahora >= timeToMins(h) + 15 ? 'SÍ' : 'no'
+    };
+  }));
+
+  const sueltas = cit.filter(c => !horas.includes(c.hora));
+  if (sueltas.length) console.log('⚠ Citas en horas que la agenda NO publica:',
+    sueltas.map(c => `${c.hora} (estado ${c.estado || '(vacío)'}, sede ${c.clinica || '(sin sede)'})`).join(', '));
+
+  return { publicados: horas, citas: cit };
+};
+
+// ── MIENTRAS SE COMPRUEBA, DECIRLE ALGO AL PACIENTE ──────────────────────
+//
+// La comprobación suele tardar un instante, pero con mala señal puede tardar
+// segundos. Sin aviso el paciente toca «Confirmar», no pasa nada visible,
+// vuelve a tocar — y termina con dos citas o se va creyendo que falló.
+//
+// Esta capa tapa la pantalla: explica qué se está haciendo y, de paso, impide
+// el segundo toque.
+window._avisoVerificando = (encender) => {
+  const ID = 'avisoVerificando';
+  const viejo = document.getElementById(ID);
+  if (!encender) { if (viejo) viejo.remove(); return; }
+  if (viejo) return;
+  const capa = document.createElement('div');
+  capa.id = ID;
+  capa.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(10,38,50,.55);' +
+    'display:flex;align-items:center;justify-content:center;padding:24px';
+  capa.innerHTML =
+    '<div style="background:#fff;border-radius:16px;padding:24px 22px;max-width:320px;text-align:center;' +
+    'font-family:inherit;box-shadow:0 12px 40px rgba(0,0,0,.25)">' +
+    '<div style="width:34px;height:34px;margin:0 auto 14px;border:3px solid #D7E8F0;' +
+    'border-top-color:#1A6B8A;border-radius:50%;animation:vrfGira .9s linear infinite"></div>' +
+    '<div style="font-weight:700;color:#0F3F52;font-size:16px;margin-bottom:6px">Verificando disponibilidad</div>' +
+    '<div style="color:#4A6B78;font-size:13.5px;line-height:1.5">Estamos confirmando que ese horario siga libre. ' +
+    'Un momento, por favor.</div></div>' +
+    '<style>@keyframes vrfGira{to{transform:rotate(360deg)}}</style>';
+  document.body.appendChild(capa);
+};
+
 // ── SI EL HORARIO SE PERDIÓ, DEVOLVERLO AL CALENDARIO ────────────────────
 //
 // No basta con avisarle. Entre que eligió la hora y tocó «Confirmar» pudo
@@ -1903,46 +1974,14 @@ window._volverAElegirHorario = async (motivo, fecha) => {
   } catch(_) {}
 };
 
-// ── MIENTRAS SE COMPRUEBA, DECIRLE ALGO AL PACIENTE ──────────────────────
-//
-// La comprobación suele tardar un instante, pero con mala señal puede tardar
-// segundos. Sin aviso el paciente toca «Confirmar», no pasa nada visible,
-// vuelve a tocar — y termina con dos citas o se va creyendo que falló.
-//
-// Esta capa tapa la pantalla: explica qué se está haciendo y, de paso, impide
-// el segundo toque.
-window._avisoVerificando = (encender) => {
-  const ID = 'avisoVerificando';
-  const viejo = document.getElementById(ID);
-  if (!encender) { if (viejo) viejo.remove(); return; }
-  if (viejo) return;
-  const capa = document.createElement('div');
-  capa.id = ID;
-  capa.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(10,38,50,.55);' +
-    'display:flex;align-items:center;justify-content:center;padding:24px';
-  capa.innerHTML =
-    '<div style="background:#fff;border-radius:16px;padding:24px 22px;max-width:320px;text-align:center;' +
-    'font-family:inherit;box-shadow:0 12px 40px rgba(0,0,0,.25)">' +
-    '<div style="width:34px;height:34px;margin:0 auto 14px;border:3px solid #D7E8F0;' +
-    'border-top-color:#1A6B8A;border-radius:50%;animation:vrfGira .9s linear infinite"></div>' +
-    '<div style="font-weight:700;color:#0F3F52;font-size:16px;margin-bottom:6px">Verificando disponibilidad</div>' +
-    '<div style="color:#4A6B78;font-size:13.5px;line-height:1.5">Estamos confirmando que ese horario siga libre. ' +
-    'Un momento, por favor.</div></div>' +
-    '<style>@keyframes vrfGira{to{transform:rotate(360deg)}}</style>';
-  document.body.appendChild(capa);
-};
-
 window._horarioSigueLibre = async (medicoId, fecha, hora) => {
   await window._listo;
   try {
     // 1 · ¿la agenda lo sigue ofreciendo?
-    // Filtrar por fecha (un solo campo, índice automático) trae un puñado de
-    // documentos en vez de la colección entera: la comprobación es inmediata.
-    const sq = query(window._slotsCol, where('fecha','==',fecha));
+    const sq = query(window._slotsCol, where('medicoId','==',medicoId));
     const ss = await getDocs(sq);
     const existe = ss.docs.some(d => {
       const x = d.data();
-      if (x.medicoId !== medicoId) return false;
       if (x.fecha !== fecha || x.hora !== hora) return false;
       if (x.disponible === false) return false;
       return x.clinica !== 'sancristobal';
@@ -1950,11 +1989,10 @@ window._horarioSigueLibre = async (medicoId, fecha, hora) => {
     if (!existe) return { ok:false, motivo:'ese horario ya no está disponible' };
 
     // 2 · ¿alguien se adelantó?
-    const cq = query(window._col, where('fecha','==',fecha));
+    const cq = query(window._col, where('medicoId','==',medicoId));
     const cs = await getDocs(cq);
     const tomado = cs.docs.some(d => {
       const c = d.data();
-      if (c.medicoId !== medicoId) return false;
       if (c.fecha !== fecha || c.hora !== hora) return false;
       if (c.estado === 'cancelada') return false;
       return c.clinica !== 'sancristobal';
@@ -3009,14 +3047,15 @@ async function renderSlots() {
     if (occ) occ.forEach(h => occupied.add(h));
   } catch(e) { console.log('Firebase error citas:', e); }
 
-  // Mostrar máximo 2 slots libres al paciente
-  const publicVisible = new Set();
-  for (let i = 0; i < allSlots.length && publicVisible.size < 2; i++) {
-    const slot = allSlots[i];
-    if (!occupied.has(slot)) publicVisible.add(slot);
-  }
-
-  // Bloquear slots pasados (15 min de gracia)
+  // ── PRIMERO DESCARTAR, DESPUÉS ELEGIR ──────────────────────────────────
+  //
+  // Esto estaba al revés: se elegían los dos primeros libres y RECIÉN DESPUÉS
+  // se borraban los que ya habían pasado de hora, sin reponerlos. A media
+  // mañana los dos elegidos eran de la mañana, los dos se borraban, y al
+  // paciente le quedaba uno o ninguno aunque la tarde estuviera libre entera.
+  //
+  // Ahora se descarta primero (ocupados y pasados) y después se eligen los dos
+  // primeros que de verdad se pueden tomar.
   const now = new Date();
   const todayStr = dateToStr(now);
   const isToday = dateStr === todayStr;
@@ -3024,11 +3063,16 @@ async function renderSlots() {
     const nowMins = now.getHours() * 60 + now.getMinutes();
     allSlots.forEach(slot => {
       const slotMins = timeToMins(slot);
-      if (nowMins >= slotMins + 15 && !occupied.has(slot)) {
-        adminBlocked.add(slot);
-        publicVisible.delete(slot);
-      }
+      if (nowMins >= slotMins + 15 && !occupied.has(slot)) adminBlocked.add(slot);
     });
+  }
+
+  // Mostrar máximo 2 slots libres al paciente — los dos PRIMEROS tomables.
+  const publicVisible = new Set();
+  for (const slot of allSlots) {
+    if (publicVisible.size >= 2) break;
+    if (occupied.has(slot) || adminBlocked.has(slot)) continue;
+    publicVisible.add(slot);
   }
 
   // ¿Cuántos espacios libres hay REALMENTE en el día (no solo los revelados)?
